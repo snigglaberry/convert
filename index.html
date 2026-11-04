@@ -40,17 +40,21 @@ a.t{text-decoration:none}
 .btn{display:inline-block;background:none;font:inherit;font-size:13px;color:var(--mid);border:1px solid var(--line2);border-radius:0;padding:9px 18px;cursor:pointer;text-decoration:none;text-decoration-thickness:1px;transition:color .18s,border-color .18s}
 .btn:hover,.btn:focus-visible{color:#fff;border-color:#888;text-decoration:underline;text-underline-offset:4px}
 .btn:disabled{opacity:.3;pointer-events:none}
+.btn.sel,.btn.sel:hover,.btn.sel:focus-visible{border:0;outline:0;padding:3px 0}
 .num{width:56px;background:none;border:0;border-bottom:1px solid var(--line2);border-radius:0;color:var(--fg);font:inherit;font-size:13px;padding:3px 0;text-align:center;outline:0;-moz-appearance:textfield;transition:border-color .18s}
 .num:focus,.num:hover{border-bottom-color:#aaa}
 .num::-webkit-inner-spin-button,.num::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
 .unit{font-size:12px;color:var(--dim)}
-.bar{display:none;height:1px;background:var(--line);margin-top:24px}
+.bar{display:none;height:2px;background:var(--line);margin-top:24px;overflow:hidden}
 .bar.on{display:block}
-.bar i{display:block;height:1px;width:0;background:#ddd;transition:width .2s linear}
+.bar i{display:block;height:100%;width:0;background:#ddd;transition:width .25s ease-out}
+.bar.ind i{width:30%;transition:none;animation:ind 1.2s ease-in-out infinite}
+@keyframes ind{from{transform:translateX(-100%)}to{transform:translateX(340%)}}
 .status{min-height:18px;margin-top:10px;font-size:12px;line-height:1.6;color:var(--dim)}
 .err{color:#d98a8a}
 .note{margin:14px 0 0;font-size:12px;line-height:1.7;color:var(--dim)}
-video.out{display:block;width:100%;max-height:340px;margin-top:22px;background:#000}
+.out{display:block;max-width:100%;max-height:340px;margin-top:22px;background:#000}
+video.out{width:100%}
 .list{list-style:none;margin:22px 0 0;padding:0}
 .list:empty{display:none}
 .list li{display:flex;align-items:baseline;gap:14px;padding:11px 0;border-bottom:1px solid var(--line);font-size:13px}
@@ -70,7 +74,7 @@ video.out{display:block;width:100%;max-height:340px;margin-top:22px;background:#
 .pko[aria-selected=true]::after{content:' ·'}
 .pke{font-size:13px;color:var(--dim);padding:16px 0 6px}
 @media (max-width:480px){.lbl{width:100%}main{padding-top:56px}}
-@media (prefers-reduced-motion:reduce){.pane.on{animation:none}.bar i{transition:none}}
+@media (prefers-reduced-motion:reduce){.pane.on{animation:none}.bar i{transition:none}.bar.ind i{animation:none;width:100%;opacity:.4}}
 </style>
 </head>
 <body>
@@ -79,31 +83,45 @@ video.out{display:block;width:100%;max-height:340px;margin-top:22px;background:#
 
 <main>
   <h1>convert</h1>
-  <p class="sub">images and video, converted right here.<br>nothing is uploaded, everything runs in your browser.</p>
+  <p class="sub">images, video and gifs, converted right here.<br>nothing is uploaded, everything runs in your browser.</p>
 
   <nav aria-label="tools">
     <button class="t" data-tab="image" type="button">image</button>
     <button class="t" data-tab="video" type="button">video</button>
+    <button class="t" data-tab="gif" type="button">gif maker</button>
     <span class="soon" aria-disabled="true">download from social media<em>coming soon</em></span>
   </nav>
 
   <section class="pane" id="p-image">
     <label class="drop" id="d-img"><input type="file" accept="image/*" multiple><span class="dt"><b>choose images</b>&nbsp;or drop them here</span></label>
-    <div class="row"><span class="lbl">to</span><button class="btn" id="f-img" type="button" aria-haspopup="dialog"></button></div>
+    <div class="row"><span class="lbl">to</span><button class="btn sel" id="f-img" type="button" aria-haspopup="dialog"></button></div>
+    <p class="note" id="n-ico" hidden>icons include every size from 16 to 256 px, each stored as lossless png, centered on a transparent square.</p>
     <div id="v-img" hidden>
       <div class="row"><span class="lbl">length</span><div class="chips" id="c-len"></div></div>
       <div class="row"><span class="lbl"></span><input class="num" id="n-len" type="number" min="1" max="600" step="1" value="5" aria-label="length in seconds"><span class="unit">seconds</span></div>
     </div>
     <ul class="list" id="l-img"></ul>
     <div class="row"><button class="btn" id="b-img" type="button" disabled>convert</button><button class="btn" id="k-img" type="button" hidden>cancel</button><button class="t" id="x-img" type="button" hidden>clear</button></div>
+    <div class="bar" id="bar-img"><i></i></div><div class="status" id="st-img" role="status"></div>
   </section>
 
   <section class="pane" id="p-video" data-run="video" data-label="convert">
     <label class="drop" id="d-video"><input type="file" accept="video/*"><span class="dt"><b>choose a video</b>&nbsp;or drop it here</span></label>
-    <div class="row"><span class="lbl">format</span><button class="btn" id="f-vid" type="button" aria-haspopup="dialog"></button></div>
+    <div class="row"><span class="lbl">format</span><button class="btn sel" id="f-vid" type="button" aria-haspopup="dialog"></button></div>
     <div class="row"><span class="lbl">size</span><div class="chips" id="c-vres"></div></div>
     <div class="row"><span class="lbl">quality</span><div class="chips" id="c-vq"></div></div>
     <p class="note">video is converted in real time, so a two minute clip takes two minutes. keep this tab open and visible while it runs.</p>
+  </section>
+
+  <section class="pane" id="p-gif" data-run="gif" data-label="make gif">
+    <label class="drop" id="d-gif"><input type="file" accept="image/*" multiple><span class="dt"><b>add images</b>&nbsp;or drop them here</span></label>
+    <ul class="list" id="l-gif"></ul>
+    <div class="row"><button class="t" id="z-gif" type="button" hidden>clear all</button></div>
+    <div class="row"><span class="lbl">between</span><div class="chips" id="c-gd"></div></div>
+    <div class="row"><span class="lbl"></span><input class="num" id="n-gd" type="number" min="0.02" max="60" step="0.05" value="1" aria-label="seconds between images"><span class="unit">seconds</span></div>
+    <div class="row"><span class="lbl">size</span><div class="chips" id="c-gs"></div></div>
+    <div class="row"><span class="lbl">loop</span><div class="chips" id="c-gl"></div></div>
+    <p class="note">every image is fitted to the size of the first one. gifs are limited to 256 colors per frame, and smaller sizes make smaller files.</p>
   </section>
 
   <p class="foot">files never leave this tab</p>
@@ -119,7 +137,10 @@ const fmtSize = b => b < 1e6 ? Math.max(1, Math.round(b / 1e3)) + ' kb' : (b / 1
 const baseName = n => n.replace(/\.[^.]+$/, '') || 'file';
 const even = n => Math.max(2, Math.round(n / 2) * 2);
 const tf = s => Math.floor(s / 60) + ':' + String(Math.floor(s % 60)).padStart(2, '0');
-let busy = false;
+const tick = () => new Promise(r => setTimeout(r));
+const mk = (w, h) => { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; };
+const tb = (c, m, q) => new Promise(r => c.toBlob(r, m, q));
+let busy = false, stop = false;
 
 /* ---------- background ---------- */
 (() => {
@@ -177,7 +198,7 @@ function wire(drop, multi, ok, cb) {
   ['dragleave', 'drop'].forEach(e => drop.addEventListener(e, ev => { ev.preventDefault(); drop.classList.remove('over'); }));
   drop.addEventListener('drop', ev => { const f = [...ev.dataTransfer.files].filter(ok); if (f.length) cb(multi ? f : f.slice(0, 1)); });
 }
-const AL = { jpg: 'jpeg', mp4: 'm4v h264', webm: 'vp9' };
+const AL = { jpg: 'jpeg', ico: 'icon favicon', gif: 'animated', bmp: 'bitmap', avif: 'av1', mp4: 'm4v h264', 'mp4 hevc': 'h265', 'mp4 av1': 'av1', mov: 'quicktime', webm: 'vp9', 'webm vp8': 'vp8', 'webm av1': 'av1', mkv: 'matroska' };
 const pk = $('#pk'), pq = $('#pk-q'), pl = $('#pk-l');
 let pc = null, pa = 0, pv = [];
 const pmark = () => pv.forEach((o, i) => { o.b.classList.toggle('act', i === pa); if (i === pa) o.b.scrollIntoView({ block: 'nearest' }); });
@@ -239,11 +260,149 @@ $$('[data-tab]').forEach(b => b.onclick = () => { show(b.dataset.tab); history.r
 addEventListener('hashchange', () => show(location.hash.slice(1)));
 show(location.hash.slice(1));
 
-/* ---------- image to image ---------- */
-const IMG = { png: 'image/png', jpg: 'image/jpeg', webp: 'image/webp' };
+/* ---------- encoders: ico, bmp, gif ---------- */
+/* fit an image inside an s x s square with high quality, halving in steps */
+function sq(img, s) {
+  const sw = img.naturalWidth || img.width, sh = img.naturalHeight || img.height, k = Math.min(s / sw, s / sh);
+  const tw = Math.max(1, Math.round(sw * k)), th = Math.max(1, Math.round(sh * k));
+  let cur = img, cw = sw, ch = sh;
+  while (cw >= tw * 2 && ch >= th * 2) {
+    const c = mk(Math.ceil(cw / 2), Math.ceil(ch / 2)), x = c.getContext('2d');
+    x.imageSmoothingQuality = 'high'; x.drawImage(cur, 0, 0, c.width, c.height);
+    cur = c; cw = c.width; ch = c.height;
+  }
+  const o = mk(s, s), x = o.getContext('2d');
+  x.imageSmoothingQuality = 'high';
+  x.drawImage(cur, 0, 0, cw, ch, Math.round((s - tw) / 2), Math.round((s - th) / 2), tw, th);
+  return o;
+}
+async function ico(img) {
+  const S = [16, 20, 24, 32, 40, 48, 64, 96, 128, 256], ps = [];
+  for (const s of S) { ps.push(new Uint8Array(await (await tb(sq(img, s), 'image/png')).arrayBuffer())); await tick(); }
+  const n = S.length; let off = 6 + 16 * n, tot = off;
+  ps.forEach(p => tot += p.length);
+  const o = new Uint8Array(tot), v = new DataView(o.buffer);
+  v.setUint16(2, 1, true); v.setUint16(4, n, true);
+  S.forEach((s, i) => {
+    const e = 6 + 16 * i;
+    o[e] = o[e + 1] = s < 256 ? s : 0;
+    v.setUint16(e + 4, 1, true); v.setUint16(e + 6, 32, true);
+    v.setUint32(e + 8, ps[i].length, true); v.setUint32(e + 12, off, true);
+    o.set(ps[i], off); off += ps[i].length;
+  });
+  return new Blob([o], { type: 'image/x-icon' });
+}
+function bmp(c) {
+  const w = c.width, h = c.height, d = c.getContext('2d').getImageData(0, 0, w, h).data;
+  const rs = (w * 3 + 3) & ~3, sz = rs * h, b = new Uint8Array(54 + sz), v = new DataView(b.buffer);
+  b[0] = 66; b[1] = 77; v.setUint32(2, 54 + sz, true); v.setUint32(10, 54, true); v.setUint32(14, 40, true);
+  v.setInt32(18, w, true); v.setInt32(22, h, true); v.setUint16(26, 1, true); v.setUint16(28, 24, true);
+  v.setUint32(34, sz, true); v.setInt32(38, 2835, true); v.setInt32(42, 2835, true);
+  for (let y = 0; y < h; y++) for (let x = 0, o = 54 + (h - 1 - y) * rs, i = y * w * 4; x < w; x++, o += 3, i += 4) { b[o] = d[i + 2]; b[o + 1] = d[i + 1]; b[o + 2] = d[i]; }
+  return new Blob([b], { type: 'image/bmp' });
+}
+/* gif: median cut palette per frame + lzw */
+function quant(d) {
+  const H = new Uint32Array(32768), R = new Float64Array(32768), G = new Float64Array(32768), B = new Float64Array(32768);
+  for (let i = 0; i < d.length; i += 4) { const k = (d[i] >> 3) << 10 | (d[i + 1] >> 3) << 5 | d[i + 2] >> 3; H[k]++; R[k] += d[i]; G[k] += d[i + 1]; B[k] += d[i + 2]; }
+  const ks = []; for (let k = 0; k < 32768; k++) if (H[k]) ks.push(k);
+  const ch = [k => k >> 10, k => (k >> 5) & 31, k => k & 31];
+  const mkb = a => {
+    let bs = -1, bc = 0;
+    if (a.length > 1) for (let c = 0; c < 3; c++) { let lo = 31, hi = 0; for (const k of a) { const v = ch[c](k); if (v < lo) lo = v; if (v > hi) hi = v; } if (hi - lo > bs) { bs = hi - lo; bc = c; } }
+    return { a, c: bc, s: a.length > 1 ? bs * Math.sqrt(a.length) : 0 };
+  };
+  const bx = [mkb(ks)];
+  while (bx.length < 256) {
+    let bi = 0; for (let i = 1; i < bx.length; i++) if (bx[i].s > bx[bi].s) bi = i;
+    const b = bx[bi]; if (b.s <= 0) break;
+    b.a.sort((p, q) => ch[b.c](p) - ch[b.c](q));
+    let t = 0; for (const k of b.a) t += H[k];
+    let a = 0, j = 0; for (; j < b.a.length - 2; j++) { a += H[b.a[j]]; if (a >= t / 2) break; }
+    bx.splice(bi, 1, mkb(b.a.slice(0, j + 1)), mkb(b.a.slice(j + 1)));
+  }
+  const pal = new Uint8Array(768), map = new Uint8Array(32768);
+  bx.forEach((b, i) => {
+    let n = 0, r = 0, g = 0, l = 0;
+    for (const k of b.a) { n += H[k]; r += R[k]; g += G[k]; l += B[k]; map[k] = i; }
+    pal[i * 3] = r / n + .5; pal[i * 3 + 1] = g / n + .5; pal[i * 3 + 2] = l / n + .5;
+  });
+  return { pal, map };
+}
+function lzw(ix) {
+  const buf = []; let bits = 0, nb = 0, cs = 9, next = 258; const dict = new Map();
+  const emit = (c, n) => { bits |= c << nb; nb += n; while (nb >= 8) { buf.push(bits & 255); bits >>= 8; nb -= 8; } };
+  emit(256, cs);
+  let p = ix[0];
+  for (let i = 1; i < ix.length; i++) {
+    const c = ix[i], key = p << 8 | c, v = dict.get(key);
+    if (v !== undefined) p = v;
+    else {
+      emit(p, cs);
+      if (next < 4096) { dict.set(key, next++); if (next > (1 << cs) && cs < 12) cs++; }
+      else { emit(256, cs); dict.clear(); next = 258; cs = 9; }
+      p = c;
+    }
+  }
+  emit(p, cs); emit(257, cs); if (nb) buf.push(bits & 255);
+  return Uint8Array.from(buf);
+}
+const head = (w, h, loop) => {
+  const a = [71, 73, 70, 56, 57, 97, w & 255, w >> 8, h & 255, h >> 8, 0, 0, 0];
+  if (loop) a.push(0x21, 0xFF, 11, 78, 69, 84, 83, 67, 65, 80, 69, 50, 46, 48, 3, 1, 0, 0, 0);
+  return Uint8Array.from(a);
+};
+function gifFrame(d, w, h, cs) {
+  const { pal, map } = quant(d), ix = new Uint8Array(w * h);
+  for (let p = 0, i = 0; p < ix.length; p++, i += 4) ix[p] = map[(d[i] >> 3) << 10 | (d[i + 1] >> 3) << 5 | d[i + 2] >> 3];
+  const z = lzw(ix), n = z.length, o = new Uint8Array(18 + 768 + 1 + n + Math.ceil(n / 255) + 1);
+  o.set([0x21, 0xF9, 4, 4, cs & 255, cs >> 8, 0, 0, 0x2C, 0, 0, 0, 0, w & 255, w >> 8, h & 255, h >> 8, 0x87]);
+  o.set(pal, 18);
+  let q = 18 + 768; o[q++] = 8;
+  for (let i = 0; i < n; i += 255) { const l = Math.min(255, n - i); o[q++] = l; o.set(z.subarray(i, i + l), q); q += l; }
+  return o;
+}
+
+/* ---------- recording formats ---------- */
+const MP4 = ['video/mp4;codecs=avc1.640028,mp4a.40.2', 'video/mp4;codecs=avc1,mp4a.40.2', 'video/mp4'];
+const VF = {
+  mp4: { x: 'mp4', m: MP4 },
+  'mp4 hevc': { x: 'mp4', m: ['video/mp4;codecs=hvc1,mp4a.40.2', 'video/mp4;codecs=hev1,mp4a.40.2'] },
+  'mp4 av1': { x: 'mp4', m: ['video/mp4;codecs=av01,mp4a.40.2'] },
+  mov: { x: 'mov', m: MP4 },
+  webm: { x: 'webm', m: ['video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm'] },
+  'webm vp8': { x: 'webm', m: ['video/webm;codecs=vp8,opus'] },
+  'webm av1': { x: 'webm', m: ['video/webm;codecs=av1,opus'] },
+  mkv: { x: 'mkv', m: ['video/x-matroska;codecs=avc1,opus', 'video/x-matroska;codecs=vp9,opus', 'video/x-matroska'] }
+};
+const canRec = typeof MediaRecorder !== 'undefined' && !!HTMLCanvasElement.prototype.captureStream;
+const pick = f => canRec ? VF[f].m.find(m => MediaRecorder.isTypeSupported(m)) : undefined;
+const FM = Object.keys(VF).filter(pick);
+
+/* ---------- image converter ---------- */
+const can = m => mk(1, 1).toDataURL(m).startsWith('data:' + m);
+const IMG = { png: 'image/png', jpg: 'image/jpeg' };
+can('image/webp') && (IMG.webp = 'image/webp');
+can('image/avif') && (IMG.avif = 'image/avif');
+Object.assign(IMG, { gif: 'image/gif', bmp: 'image/bmp', ico: 'image/x-icon' });
+const FLAT = ['jpg', 'gif', 'bmp'];
+async function enc(img, ext) {
+  if (ext === 'ico') return ico(img);
+  const w = img.naturalWidth || img.width || 1024, h = img.naturalHeight || img.height || 1024;
+  const c = mk(w, h), x = c.getContext('2d', { willReadFrequently: ext === 'gif' });
+  if (FLAT.includes(ext)) { x.fillStyle = '#fff'; x.fillRect(0, 0, w, h); }
+  x.imageSmoothingQuality = 'high'; x.drawImage(img, 0, 0, w, h);
+  if (ext === 'bmp') return bmp(c);
+  if (ext === 'gif') { await tick(); return new Blob([head(w, h, 0), gifFrame(x.getImageData(0, 0, w, h).data, w, h, 10), Uint8Array.of(59)], { type: 'image/gif' }); }
+  const b = await tb(c, IMG[ext], 1);
+  if (!b || b.type !== IMG[ext]) throw new Error('unsupported');
+  return b;
+}
 const rows = [];
-const ifmt = dropdown($('#f-img'), () => [{ name: 'image', items: Object.keys(IMG) }, { name: 'video', items: FM }], 'png', v => { $('#v-img').hidden = !FM.includes(v); });
+const ifmt = dropdown($('#f-img'), () => [{ name: 'image', items: Object.keys(IMG) }, { name: 'video', items: FM }], 'png', v => { $('#v-img').hidden = !VF[v]; $('#n-ico').hidden = v !== 'ico'; });
 const syncImg = () => { $('#b-img').disabled = !rows.length || busy; $('#x-img').hidden = !rows.length; };
+const ibar = $('#bar-img'), ibi = $('i', ibar), ist = $('#st-img');
+const setP = (p, t, err) => { ibar.classList.add('on'); ibar.classList.toggle('ind', p <= 0); ibi.style.width = (p * 100) + '%'; ist.className = 'status' + (err ? ' err' : ''); ist.textContent = t; };
 wire($('#d-img'), true, f => f.type.startsWith('image/'), fs => {
   fs.forEach(f => {
     const li = document.createElement('li');
@@ -254,42 +413,38 @@ wire($('#d-img'), true, f => f.type.startsWith('image/'), fs => {
   });
   syncImg();
 });
-$('#x-img').onclick = () => { rows.forEach(r => { r.url && URL.revokeObjectURL(r.url); }); rows.length = 0; $('#l-img').innerHTML = ''; syncImg(); };
+$('#x-img').onclick = () => { rows.forEach(r => { r.url && URL.revokeObjectURL(r.url); }); rows.length = 0; $('#l-img').innerHTML = ''; ibar.classList.remove('on'); ist.textContent = ''; syncImg(); };
 $('#b-img').onclick = async () => {
-  const ext = ifmt.get(), mime = IMG[ext];
-  const isV = FM.includes(ext); stop = false; busy = true; $('#b-img').disabled = true; $('#k-img').hidden = !isV;
-  for (const r of rows) {
+  if (busy) return;
+  const ext = ifmt.get(), isV = !!VF[ext], n = rows.length;
+  stop = false; busy = true; $('#b-img').disabled = true; $('#k-img').hidden = !isV;
+  let failed = 0;
+  for (let k = 0; k < n; k++) {
+    const r = rows[k];
     if (stop) break;
+    const label = n > 1 ? 'converting ' + (k + 1) + ' of ' + n : 'converting';
+    setP(k / n, label);
     r.m.className = 'm'; r.m.textContent = 'converting…';
-    $('a', r.li)?.remove(); r.url && URL.revokeObjectURL(r.url);
-    if (isV) { await vidRow(r, ext); continue; }
+    $('a', r.li)?.remove(); r.url && URL.revokeObjectURL(r.url); r.url = null;
+    if (isV) { await vidRow(r, ext, p => setP((k + p) / n, label)); continue; }
+    let img;
     try {
-      const img = await loadImg(r.f);
-      const w = img.naturalWidth || img.width || 1024, h = img.naturalHeight || img.height || 1024;
-      const c = document.createElement('canvas'); c.width = w; c.height = h;
-      const x = c.getContext('2d');
-      if (ext === 'jpg') { x.fillStyle = '#fff'; x.fillRect(0, 0, w, h); }
-      x.drawImage(img, 0, 0, w, h); img.dispose();
-      const blob = await new Promise(res => c.toBlob(res, mime, .92));
-      if (!blob || blob.type !== mime) throw new Error('unsupported');
+      img = await loadImg(r.f);
+      const blob = await enc(img, ext);
       r.url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.className = 't'; a.textContent = 'download'; a.href = r.url; a.download = baseName(r.f.name) + '.' + ext;
       r.m.textContent = fmtSize(blob.size); r.li.append(a);
-    } catch (e) { r.m.className = 'm err'; r.m.textContent = e.message === 'unsupported' ? 'browser cannot make ' + ext : 'failed'; }
+    } catch (e) { failed++; r.m.className = 'm err'; r.m.textContent = e.message === 'unsupported' ? 'browser cannot make ' + ext : 'failed'; }
+    finally { img && img.dispose(); }
+    await tick();
   }
+  setP(stop ? ibi.style.width.slice(0, -1) / 100 : 1, stop ? 'cancelled' : failed ? 'done, ' + failed + ' failed' : 'done', failed && !stop);
+  setTimeout(() => { if (!busy) ibar.classList.remove('on'); }, 900);
   busy = false; $('#k-img').hidden = true; syncImg();
 };
 
 /* ---------- recording ---------- */
-const MIMES = {
-  mp4: ['video/mp4;codecs=avc1.640028,mp4a.40.2', 'video/mp4;codecs=avc1,mp4a.40.2', 'video/mp4'],
-  webm: ['video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm']
-};
-const canRec = typeof MediaRecorder !== 'undefined' && !!HTMLCanvasElement.prototype.captureStream;
-const pick = f => canRec ? MIMES[f].find(m => MediaRecorder.isTypeSupported(m)) : undefined;
-const FM = ['mp4', 'webm'].filter(pick);
-
 function capture({ c, mime, bps, audio, job, tick }) {
   return new Promise((resolve, reject) => {
     const st = c.captureStream(30);
@@ -308,19 +463,19 @@ function capture({ c, mime, bps, audio, job, tick }) {
   });
 }
 
-/* shared run block for the two video panes */
+/* shared run block for the video and gif panes */
 $$('[data-run]').forEach(p => {
   const id = p.dataset.run;
   p.insertAdjacentHTML('beforeend',
     `<div class="row"><button class="btn" id="b-${id}" type="button" disabled>${p.dataset.label}</button><button class="btn" id="x-${id}" type="button" hidden>cancel</button></div>` +
     `<div class="bar" id="bar-${id}"><i></i></div><div class="status" id="st-${id}" role="status"></div><div id="o-${id}"></div>`);
 });
-if (!FM.length) $$('[data-run] .row:first-of-type').forEach(() => {});
 function showOut(id, blob, name) {
   const o = $('#o-' + id); o._u && URL.revokeObjectURL(o._u);
-  const u = o._u = URL.createObjectURL(blob);
+  const u = o._u = URL.createObjectURL(blob), g = blob.type === 'image/gif';
   o.innerHTML = '';
-  const v = document.createElement('video'); v.className = 'out'; v.src = u; v.controls = true; v.playsInline = true;
+  const v = document.createElement(g ? 'img' : 'video'); v.className = 'out'; v.src = u;
+  if (g) v.alt = 'preview'; else { v.controls = true; v.playsInline = true; }
   const r = document.createElement('div'); r.className = 'row';
   const a = document.createElement('a'); a.className = 'btn'; a.href = u; a.download = name; a.textContent = 'download';
   const m = document.createElement('span'); m.className = 'm'; m.textContent = name + ' · ' + fmtSize(blob.size);
@@ -332,48 +487,50 @@ async function run(id, fn, ready) {
   const b = $('#b-' + id), x = $('#x-' + id), bar = $('#bar-' + id), bi = $('i', bar), st = $('#st-' + id);
   b.disabled = true; x.hidden = false; bar.classList.add('on'); st.className = 'status'; $('#o-' + id).innerHTML = '';
   const job = { cancel() {} }; x.onclick = () => job.cancel();
-  const prog = (p, t) => { bi.style.width = (p * 100) + '%'; st.textContent = t; };
+  const prog = (p, t) => { bar.classList.toggle('ind', p <= 0); bi.style.width = (p * 100) + '%'; st.textContent = t + (p > 0 ? ' · ' + Math.round(p * 100) + '%' : ''); };
+  prog(0, 'starting');
   try {
     const r = await fn(job, prog);
+    bi.style.width = '100%'; bar.classList.remove('ind');
     showOut(id, r.blob, r.name); st.textContent = 'done';
   } catch (e) {
     const msg = e && e.message;
     st.textContent = msg === 'cancelled' ? 'cancelled' : (msg || 'something went wrong');
     if (msg !== 'cancelled') st.classList.add('err');
   } finally {
-    busy = false; b.disabled = !ready(); x.hidden = true; bar.classList.remove('on'); bi.style.width = 0;
+    busy = false; b.disabled = !ready(); x.hidden = true;
+    setTimeout(() => { if (!busy) { bar.classList.remove('on', 'ind'); bi.style.width = 0; } }, 600);
   }
 }
 function unsupported() {
-  ['video'].forEach(id => { const s = $('#st-' + id); s.textContent = 'this browser cannot record video. try a recent chrome, edge, safari or firefox.'; s.classList.add('err'); });
+  const s = $('#st-video'); s.textContent = 'this browser cannot record video. try a recent chrome, edge, safari or firefox.'; s.classList.add('err');
 }
 if (!FM.length) unsupported();
 
 /* ---------- image to video (video formats in the image tab) ---------- */
-let stop = false, ijob = { cancel() {} };
 const len = $('#n-len');
 const lenChips = chips($('#c-len'), [3, 5, 10, 30, 60], 5, v => { len.value = v; }, v => v + 's');
 len.addEventListener('input', () => lenChips.set(+len.value));
+let ijob = { cancel() {} };
 $('#k-img').onclick = () => { stop = true; ijob.cancel(); };
-async function vidRow(r, ext) {
+async function vidRow(r, ext, onp) {
   const secs = Math.min(600, Math.max(1, Math.round(+len.value) || 5)); len.value = secs; lenChips.set(secs);
   let img;
   try {
     img = await loadImg(r.f);
     let w = img.naturalWidth || img.width || 1280, h = img.naturalHeight || img.height || 720;
     const s = Math.min(1, 1920 / Math.max(w, h)); w = even(w * s); h = even(h * s);
-    const c = document.createElement('canvas'); c.width = w; c.height = h;
-    const x = c.getContext('2d'), t0 = performance.now();
+    const c = mk(w, h), x = c.getContext('2d'), t0 = performance.now();
     const draw = () => { x.fillStyle = '#000'; x.fillRect(0, 0, w, h); x.drawImage(img, 0, 0, w, h); };
     draw();
     ijob = { cancel() {} };
     const blob = await capture({
       c, mime: pick(ext), bps: Math.max(1.5e6, w * h * 30 * .05), job: ijob,
-      tick: () => { draw(); const t = Math.min(secs, (performance.now() - t0) / 1000); r.m.textContent = 'recording ' + tf(t) + ' / ' + tf(secs); return t / secs; }
+      tick: () => { draw(); const t = Math.min(secs, (performance.now() - t0) / 1000), p = t / secs; r.m.textContent = 'recording ' + tf(t) + ' / ' + tf(secs); onp(p); return p; }
     });
     r.url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.className = 't'; a.textContent = 'download'; a.href = r.url; a.download = baseName(r.f.name) + '.' + ext;
+    a.className = 't'; a.textContent = 'download'; a.href = r.url; a.download = baseName(r.f.name) + '.' + VF[ext].x;
     r.m.textContent = fmtSize(blob.size); r.li.append(a);
   } catch (e) {
     const cx = e.message === 'cancelled';
@@ -397,8 +554,7 @@ $('#b-video').onclick = () => run('video', async (job, prog) => {
     if (!v.videoWidth) throw new Error('no video track found');
     const H = vres.get() === 'original' ? Infinity : parseInt(vres.get());
     const s = Math.min(1, H / v.videoHeight), w = even(v.videoWidth * s), h = even(v.videoHeight * s);
-    const c = document.createElement('canvas'); c.width = w; c.height = h;
-    const x = c.getContext('2d'), dur = isFinite(v.duration) ? v.duration : 0;
+    const c = mk(w, h), x = c.getContext('2d'), dur = isFinite(v.duration) ? v.duration : 0;
     ac = new (window.AudioContext || window.webkitAudioContext)();
     const dst = ac.createMediaStreamDestination();
     ac.createMediaElementSource(v).connect(dst);
@@ -415,11 +571,60 @@ $('#b-video').onclick = () => run('video', async (job, prog) => {
       }
     });
     await v.play();
-    const blob = await job2;
-    const same = f.name.toLowerCase().endsWith('.' + fmt);
-    return { blob, name: baseName(f.name) + (same ? '-converted' : '') + '.' + fmt };
+    const blob = await job2, ex = VF[fmt].x;
+    const same = f.name.toLowerCase().endsWith('.' + ex);
+    return { blob, name: baseName(f.name) + (same ? '-converted' : '') + '.' + ex };
   } finally { v.pause(); ac && ac.close(); URL.revokeObjectURL(url); }
 }, () => !!vfile && FM.length > 0);
+
+/* ---------- gif maker ---------- */
+const gf = [], gd = $('#n-gd');
+const gdc = chips($('#c-gd'), [.25, .5, 1, 2, 3, 5], 1, v => { gd.value = v; }, v => v + 's');
+gd.addEventListener('input', () => gdc.set(+gd.value));
+const gsz = chips($('#c-gs'), ['original', 1080, 720, 480, 320], 480, null, v => v === 'original' ? v : v + 'px');
+const glp = chips($('#c-gl'), ['forever', 'once'], 'forever');
+function gdraw() {
+  const ul = $('#l-gif'); ul.innerHTML = '';
+  const mv = (i, d) => { const j = i + d; if (j < 0 || j >= gf.length) return; [gf[i], gf[j]] = [gf[j], gf[i]]; gdraw(); };
+  gf.forEach((f, i) => {
+    const li = document.createElement('li');
+    li.innerHTML = '<span class="n"></span><span class="m"></span><button class="t" type="button" aria-label="move up">↑</button><button class="t" type="button" aria-label="move down">↓</button><button class="t" type="button" aria-label="remove">×</button>';
+    li.children[0].textContent = (i + 1) + '. ' + f.name; li.children[1].textContent = fmtSize(f.size);
+    const b = $$('button', li);
+    b[0].onclick = () => mv(i, -1); b[1].onclick = () => mv(i, 1); b[2].onclick = () => { gf.splice(i, 1); gdraw(); };
+    ul.append(li);
+  });
+  $('#b-gif').disabled = busy || !gf.length; $('#z-gif').hidden = !gf.length;
+}
+wire($('#d-gif'), true, f => f.type.startsWith('image/'), fs => { gf.push(...fs); gdraw(); });
+$('#z-gif').onclick = () => { gf.length = 0; gdraw(); };
+$('#b-gif').onclick = () => run('gif', async (job, prog) => {
+  let off = false; job.cancel = () => { off = true; };
+  const files = gf.slice(), n = files.length;
+  const cs = Math.min(6000, Math.max(2, Math.round((+gd.value || 1) * 100)));
+  const M = gsz.get() === 'original' ? Infinity : gsz.get();
+  const parts = []; let c, x, w, h;
+  for (let i = 0; i < n; i++) {
+    if (off) throw new Error('cancelled');
+    prog(i / n, 'frame ' + (i + 1) + ' of ' + n);
+    await tick();
+    const img = await loadImg(files[i]);
+    const iw = img.naturalWidth || img.width, ih = img.naturalHeight || img.height;
+    if (!c) {
+      const s = Math.min(1, M / Math.max(iw, ih));
+      w = Math.max(1, Math.round(iw * s)); h = Math.max(1, Math.round(ih * s));
+      c = mk(w, h); x = c.getContext('2d', { willReadFrequently: true });
+      parts.push(head(w, h, glp.get() === 'forever'));
+    }
+    const k = Math.min(w / iw, h / ih);
+    x.fillStyle = '#fff'; x.fillRect(0, 0, w, h); x.imageSmoothingQuality = 'high';
+    x.drawImage(img, (w - iw * k) / 2, (h - ih * k) / 2, iw * k, ih * k); img.dispose();
+    parts.push(gifFrame(x.getImageData(0, 0, w, h).data, w, h, cs));
+  }
+  parts.push(Uint8Array.of(59));
+  prog(1, 'finishing');
+  return { blob: new Blob(parts, { type: 'image/gif' }), name: 'animation.gif' };
+}, () => gf.length > 0);
 })();
 </script>
 </body>
