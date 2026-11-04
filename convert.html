@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#111111">
+<title>convert</title>
+<style>
+:root{--bg:#111;--fg:#f3f3f3;--mid:#aaa;--dim:#777;--line:#292929;--line2:#3a3a3a;color-scheme:dark;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+html{scroll-padding-top:env(safe-area-inset-top,0px);background:var(--bg)}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{margin:0;color:var(--fg);font-family:Arial,Helvetica,sans-serif;display:flex;justify-content:center;min-height:calc(100dvh - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px))}
+.bg{position:fixed;inset:0;z-index:0;pointer-events:none}
+.bg canvas{width:100%;height:100%;display:block;opacity:.78}
+main{position:relative;z-index:1;width:min(92vw,520px);padding:72px 0 56px}
+h1{font-size:25px;font-weight:600;letter-spacing:-.7px;margin:0 0 12px}
+.sub{font-size:14px;line-height:1.85;color:var(--mid);margin:0}
+nav{display:flex;flex-wrap:wrap;gap:10px 22px;margin:34px 0 28px;font-size:13px}
+.t{background:none;border:0;padding:0 0 3px;font:inherit;color:var(--dim);cursor:pointer;border-bottom:1px solid transparent;text-decoration-thickness:1px;transition:color .18s,border-color .18s;border-radius:0}
+a.t{text-decoration:none}
+.t:hover,.t:focus-visible{color:#fff;text-decoration:underline;text-underline-offset:4px}
+.t[aria-current],.t[aria-pressed=true]{color:#fff;border-bottom-color:#666}
+.t[aria-current]:hover,.t[aria-pressed=true]:hover{border-bottom-color:transparent}
+.soon{font-size:13px;color:var(--dim);opacity:.28;cursor:default;user-select:none;padding-bottom:3px}
+.soon em{font-style:normal;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;margin-left:7px}
+:focus-visible{outline:1px solid #888;outline-offset:3px}
+.pane{display:none}
+.pane.on{display:block;animation:in .3s ease}
+@keyframes in{from{opacity:0;transform:translateY(4px)}}
+.drop{position:relative;display:flex;align-items:center;justify-content:center;height:132px;padding:0 16px;border:1px dashed var(--line2);color:var(--dim);font-size:13px;text-align:center;transition:border-color .18s}
+.drop input{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer}
+.drop:hover,.drop.over,.drop:focus-within{border-color:#888}
+.dt{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dt b{font-weight:400;color:var(--mid);transition:color .18s}
+.drop:hover .dt b,.drop.over .dt b,.drop:focus-within .dt b{color:#fff;text-decoration:underline;text-underline-offset:4px}
+.row{display:flex;align-items:center;flex-wrap:wrap;gap:10px 18px;margin-top:22px;font-size:13px}
+.lbl{width:64px;font-size:11px;color:var(--dim);text-transform:uppercase;letter-spacing:1.5px}
+.chips{display:flex;flex-wrap:wrap;gap:8px 20px}
+.btn{display:inline-block;background:none;font:inherit;font-size:13px;color:var(--mid);border:1px solid var(--line2);border-radius:0;padding:9px 18px;cursor:pointer;text-decoration:none;text-decoration-thickness:1px;transition:color .18s,border-color .18s}
+.btn:hover,.btn:focus-visible{color:#fff;border-color:#888;text-decoration:underline;text-underline-offset:4px}
+.btn:disabled{opacity:.3;pointer-events:none}
+.num{width:56px;background:none;border:0;border-bottom:1px solid var(--line2);border-radius:0;color:var(--fg);font:inherit;font-size:13px;padding:3px 0;text-align:center;outline:0;-moz-appearance:textfield;transition:border-color .18s}
+.num:focus,.num:hover{border-bottom-color:#aaa}
+.num::-webkit-inner-spin-button,.num::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+.unit{font-size:12px;color:var(--dim)}
+.bar{display:none;height:1px;background:var(--line);margin-top:24px}
+.bar.on{display:block}
+.bar i{display:block;height:1px;width:0;background:#ddd;transition:width .2s linear}
+.status{min-height:18px;margin-top:10px;font-size:12px;line-height:1.6;color:var(--dim)}
+.err{color:#d98a8a}
+.note{margin:14px 0 0;font-size:12px;line-height:1.7;color:var(--dim)}
+video.out{display:block;width:100%;max-height:340px;margin-top:22px;background:#000}
+.list{list-style:none;margin:22px 0 0;padding:0}
+.list:empty{display:none}
+.list li{display:flex;align-items:baseline;gap:14px;padding:11px 0;border-bottom:1px solid var(--line);font-size:13px}
+.list li:first-child{border-top:1px solid var(--line)}
+.n{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#eee}
+.m{font-size:11px;color:var(--dim);white-space:nowrap}
+.foot{margin-top:56px;font-size:11px;line-height:1.9;color:var(--dim);text-transform:uppercase;letter-spacing:1.5px}
+.pk{position:fixed;inset:0;z-index:20;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.45);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);animation:fade .18s ease}
+@keyframes fade{from{opacity:0}}
+.pkbox{width:min(92vw,400px);max-height:min(70vh,440px);display:flex;flex-direction:column;border:1px solid var(--line2);background:rgba(17,17,17,.88);padding:4px 22px 14px}
+.pkbox input{width:100%;background:none;border:0;border-bottom:1px solid var(--line2);border-radius:0;color:var(--fg);font:inherit;font-size:14px;padding:16px 0 12px;outline:0}
+.pkbox input::placeholder{color:var(--dim)}
+.pkl{overflow:auto;margin-top:6px}
+.pkg{font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:1.5px;margin:16px 0 4px}
+.pko{display:block;width:100%;text-align:left;background:none;border:0;border-radius:0;font:inherit;font-size:14px;color:var(--mid);padding:8px 0;cursor:pointer;text-decoration-thickness:1px}
+.pko.act{color:#fff;text-decoration:underline;text-underline-offset:4px}
+.pko[aria-selected=true]::after{content:' ·'}
+.pke{font-size:13px;color:var(--dim);padding:16px 0 6px}
+@media (max-width:480px){.lbl{width:100%}main{padding-top:56px}}
+@media (prefers-reduced-motion:reduce){.pane.on{animation:none}.bar i{transition:none}}
+</style>
+</head>
+<body>
+
+<div class="bg" aria-hidden="true"><canvas id="bg"></canvas></div>
+
+<main>
+  <h1>convert</h1>
+  <p class="sub">images and video, converted right here.<br>nothing is uploaded, everything runs in your browser.</p>
+
+  <nav aria-label="tools">
+    <button class="t" data-tab="image" type="button">image</button>
+    <button class="t" data-tab="video" type="button">video</button>
+    <span class="soon" aria-disabled="true">download from social media<em>coming soon</em></span>
+  </nav>
+
+  <section class="pane" id="p-image">
+    <label class="drop" id="d-img"><input type="file" accept="image/*" multiple><span class="dt"><b>choose images</b>&nbsp;or drop them here</span></label>
+    <div class="row"><span class="lbl">to</span><button class="btn" id="f-img" type="button" aria-haspopup="dialog"></button></div>
+    <div id="v-img" hidden>
+      <div class="row"><span class="lbl">length</span><div class="chips" id="c-len"></div></div>
+      <div class="row"><span class="lbl"></span><input class="num" id="n-len" type="number" min="1" max="600" step="1" value="5" aria-label="length in seconds"><span class="unit">seconds</span></div>
+    </div>
+    <ul class="list" id="l-img"></ul>
+    <div class="row"><button class="btn" id="b-img" type="button" disabled>convert</button><button class="btn" id="k-img" type="button" hidden>cancel</button><button class="t" id="x-img" type="button" hidden>clear</button></div>
+  </section>
+
+  <section class="pane" id="p-video" data-run="video" data-label="convert">
+    <label class="drop" id="d-video"><input type="file" accept="video/*"><span class="dt"><b>choose a video</b>&nbsp;or drop it here</span></label>
+    <div class="row"><span class="lbl">format</span><button class="btn" id="f-vid" type="button" aria-haspopup="dialog"></button></div>
+    <div class="row"><span class="lbl">size</span><div class="chips" id="c-vres"></div></div>
+    <div class="row"><span class="lbl">quality</span><div class="chips" id="c-vq"></div></div>
+    <p class="note">video is converted in real time, so a two minute clip takes two minutes. keep this tab open and visible while it runs.</p>
+  </section>
+
+  <p class="foot">files never leave this tab</p>
+</main>
+
+<div class="pk" id="pk" hidden><div class="pkbox" role="dialog" aria-modal="true" aria-label="choose format"><input id="pk-q" type="text" placeholder="search formats" autocomplete="off" spellcheck="false" aria-label="search formats"><div class="pkl" id="pk-l" role="listbox"></div></div></div>
+
+<script>
+(() => {
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const fmtSize = b => b < 1e6 ? Math.max(1, Math.round(b / 1e3)) + ' kb' : (b / 1e6).toFixed(1) + ' mb';
+const baseName = n => n.replace(/\.[^.]+$/, '') || 'file';
+const even = n => Math.max(2, Math.round(n / 2) * 2);
+const tf = s => Math.floor(s / 60) + ':' + String(Math.floor(s % 60)).padStart(2, '0');
+let busy = false;
+
+/* ---------- background ---------- */
+(() => {
+  const c = $('#bg'), x = c.getContext('2d', { alpha: false }), S = 6;
+  let w, h, fr, px, last = 0;
+  const hs = (a, b) => { const v = Math.sin(a * 127.1 + b * 311.7 + 41.73) * 43758.5453; return v - Math.floor(v); };
+  const sm = v => v * v * (3 - 2 * v);
+  const nz = (a, b) => {
+    const i = Math.floor(a), j = Math.floor(b), fx = sm(a - i), fy = sm(b - j);
+    const A = hs(i, j), B = hs(i + 1, j), C = hs(i, j + 1), D = hs(i + 1, j + 1);
+    return (A + (B - A) * fx) * (1 - fy) + (C + (D - C) * fx) * fy;
+  };
+  const size = () => { w = Math.max(1, Math.ceil(innerWidth / S)); h = Math.max(1, Math.ceil(innerHeight / S)); c.width = w; c.height = h; fr = x.createImageData(w, h); px = fr.data; };
+  const paint = ms => {
+    const t = ms * 0.00022;
+    for (let y = 0; y < h; y++) for (let X = 0; X < w; X++) {
+      const u = X / w, v = y / h;
+      const w1 = nz(u * 3.2 + t * .8, v * 3.2 - t * .55), w2 = nz(u * 3.2 - t * .6 + 8, v * 3.2 + t * .75);
+      const p = u * 4.1 + (w1 - .5) * 2.4, q = v * 4.1 + (w2 - .5) * 2.4;
+      const cl = nz(p + t * .65, q - t * .45), dt = nz(p * 2.1 - t * .35, q * 2.1 + t * .4);
+      const fl = Math.sin((p * 1.25 + q * .9 + cl * 2.2) * Math.PI + t * 1.8);
+      const f = cl * .58 + dt * .2 + (fl * .5 + .5) * .22;
+      const s = 12 + Math.pow(Math.max(0, f), 1.8) * 31, i = (y * w + X) * 4;
+      px[i] = px[i + 1] = px[i + 2] = s; px[i + 3] = 255;
+    }
+    x.putImageData(fr, 0, 0);
+  };
+  const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const loop = ms => { requestAnimationFrame(loop); if (busy || document.hidden || ms - last < 50) return; last = ms; paint(ms); };
+  addEventListener('resize', () => { size(); paint(last); }, { passive: true });
+  size(); paint(0);
+  if (!still) requestAnimationFrame(loop);
+})();
+
+/* ---------- helpers ---------- */
+function chips(el, items, def, cb, lab = v => v) {
+  let v = def;
+  const render = () => {
+    el.innerHTML = '';
+    items.forEach(it => {
+      const b = document.createElement('button');
+      b.type = 'button'; b.className = 't'; b.textContent = lab(it);
+      b.setAttribute('aria-pressed', String(it === v));
+      b.onclick = () => { v = it; render(); cb && cb(it); };
+      el.append(b);
+    });
+  };
+  render();
+  return { get: () => v, set: n => { v = n; render(); } };
+}
+function wire(drop, multi, ok, cb) {
+  const inp = $('input', drop);
+  inp.onchange = () => { const f = [...inp.files].filter(ok); inp.value = ''; if (f.length) cb(f); };
+  ['dragenter', 'dragover'].forEach(e => drop.addEventListener(e, ev => { ev.preventDefault(); drop.classList.add('over'); }));
+  ['dragleave', 'drop'].forEach(e => drop.addEventListener(e, ev => { ev.preventDefault(); drop.classList.remove('over'); }));
+  drop.addEventListener('drop', ev => { const f = [...ev.dataTransfer.files].filter(ok); if (f.length) cb(multi ? f : f.slice(0, 1)); });
+}
+const AL = { jpg: 'jpeg', mp4: 'm4v h264', webm: 'vp9' };
+const pk = $('#pk'), pq = $('#pk-q'), pl = $('#pk-l');
+let pc = null, pa = 0, pv = [];
+const pmark = () => pv.forEach((o, i) => { o.b.classList.toggle('act', i === pa); if (i === pa) o.b.scrollIntoView({ block: 'nearest' }); });
+const pclose = () => { pk.hidden = true; pc && pc.btn.focus(); pc = null; };
+const ppick = i => { const c = pc; pclose(); c.set(i); };
+function pdraw() {
+  const q = pq.value.trim().toLowerCase(); pl.innerHTML = ''; pv = [];
+  pc.groups().forEach(g => {
+    const its = g.items.filter(i => !q || i.includes(q) || (AL[i] || '').includes(q));
+    if (!its.length) return;
+    const h = document.createElement('div'); h.className = 'pkg'; h.textContent = g.name; pl.append(h);
+    its.forEach(i => {
+      const b = document.createElement('button'); b.type = 'button'; b.tabIndex = -1; b.className = 'pko'; b.textContent = i;
+      b.setAttribute('role', 'option'); b.setAttribute('aria-selected', String(i === pc.get()));
+      b.onclick = () => ppick(i);
+      b.onmouseenter = () => { pa = pv.findIndex(o => o.b === b); pmark(); };
+      pl.append(b); pv.push({ i, b });
+    });
+  });
+  if (!pv.length) pl.innerHTML = '<div class="pke">no match</div>';
+  pa = q ? 0 : Math.max(0, pv.findIndex(o => o.i === pc.get())); pmark();
+}
+pq.addEventListener('input', pdraw);
+pq.addEventListener('keydown', e => {
+  if (e.key === 'Escape') { e.preventDefault(); pclose(); }
+  else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); if (pv.length) { pa = (pa + (e.key === 'ArrowDown' ? 1 : -1) + pv.length) % pv.length; pmark(); } }
+  else if (e.key === 'Enter') { e.preventDefault(); pv[pa] && ppick(pv[pa].i); }
+});
+pk.addEventListener('mousedown', e => { if (e.target === pk) pclose(); });
+function dropdown(btn, groups, def, cb) {
+  let v = def;
+  const set = x => { v = x; btn.textContent = x + ' ▾'; cb && cb(x); };
+  btn.textContent = v + ' ▾';
+  btn.onclick = () => { pc = { btn, groups, get: () => v, set }; pq.value = ''; pk.hidden = false; pdraw(); pq.focus(); };
+  return { get: () => v };
+}
+addEventListener('dragover', e => e.preventDefault());
+addEventListener('drop', e => e.preventDefault());
+function setDrop(drop, name) {
+  const dt = $('.dt', drop); dt.textContent = '';
+  const b = document.createElement('b'); b.textContent = name;
+  dt.append(b, '\u00a0· change');
+}
+async function loadImg(file) {
+  const url = URL.createObjectURL(file), img = new Image();
+  img.src = url;
+  try { await img.decode(); } catch { URL.revokeObjectURL(url); throw new Error('could not read that image'); }
+  img.dispose = () => URL.revokeObjectURL(url);
+  return img;
+}
+
+/* ---------- tabs ---------- */
+const show = n => {
+  if (!$('#p-' + n)) n = 'image';
+  $$('[data-tab]').forEach(b => b.dataset.tab === n ? b.setAttribute('aria-current', 'page') : b.removeAttribute('aria-current'));
+  $$('.pane').forEach(p => p.classList.toggle('on', p.id === 'p-' + n));
+};
+$$('[data-tab]').forEach(b => b.onclick = () => { show(b.dataset.tab); history.replaceState(null, '', '#' + b.dataset.tab); });
+addEventListener('hashchange', () => show(location.hash.slice(1)));
+show(location.hash.slice(1));
+
+/* ---------- image to image ---------- */
+const IMG = { png: 'image/png', jpg: 'image/jpeg', webp: 'image/webp' };
+const rows = [];
+const ifmt = dropdown($('#f-img'), () => [{ name: 'image', items: Object.keys(IMG) }, { name: 'video', items: FM }], 'png', v => { $('#v-img').hidden = !FM.includes(v); });
+const syncImg = () => { $('#b-img').disabled = !rows.length || busy; $('#x-img').hidden = !rows.length; };
+wire($('#d-img'), true, f => f.type.startsWith('image/'), fs => {
+  fs.forEach(f => {
+    const li = document.createElement('li');
+    li.innerHTML = '<span class="n"></span><span class="m"></span>';
+    li.firstChild.textContent = f.name;
+    const m = li.children[1]; m.textContent = fmtSize(f.size);
+    rows.push({ f, li, m }); $('#l-img').append(li);
+  });
+  syncImg();
+});
+$('#x-img').onclick = () => { rows.forEach(r => { r.url && URL.revokeObjectURL(r.url); }); rows.length = 0; $('#l-img').innerHTML = ''; syncImg(); };
+$('#b-img').onclick = async () => {
+  const ext = ifmt.get(), mime = IMG[ext];
+  const isV = FM.includes(ext); stop = false; busy = true; $('#b-img').disabled = true; $('#k-img').hidden = !isV;
+  for (const r of rows) {
+    if (stop) break;
+    r.m.className = 'm'; r.m.textContent = 'converting…';
+    $('a', r.li)?.remove(); r.url && URL.revokeObjectURL(r.url);
+    if (isV) { await vidRow(r, ext); continue; }
+    try {
+      const img = await loadImg(r.f);
+      const w = img.naturalWidth || img.width || 1024, h = img.naturalHeight || img.height || 1024;
+      const c = document.createElement('canvas'); c.width = w; c.height = h;
+      const x = c.getContext('2d');
+      if (ext === 'jpg') { x.fillStyle = '#fff'; x.fillRect(0, 0, w, h); }
+      x.drawImage(img, 0, 0, w, h); img.dispose();
+      const blob = await new Promise(res => c.toBlob(res, mime, .92));
+      if (!blob || blob.type !== mime) throw new Error('unsupported');
+      r.url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.className = 't'; a.textContent = 'download'; a.href = r.url; a.download = baseName(r.f.name) + '.' + ext;
+      r.m.textContent = fmtSize(blob.size); r.li.append(a);
+    } catch (e) { r.m.className = 'm err'; r.m.textContent = e.message === 'unsupported' ? 'browser cannot make ' + ext : 'failed'; }
+  }
+  busy = false; $('#k-img').hidden = true; syncImg();
+};
+
+/* ---------- recording ---------- */
+const MIMES = {
+  mp4: ['video/mp4;codecs=avc1.640028,mp4a.40.2', 'video/mp4;codecs=avc1,mp4a.40.2', 'video/mp4'],
+  webm: ['video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm']
+};
+const canRec = typeof MediaRecorder !== 'undefined' && !!HTMLCanvasElement.prototype.captureStream;
+const pick = f => canRec ? MIMES[f].find(m => MediaRecorder.isTypeSupported(m)) : undefined;
+const FM = ['mp4', 'webm'].filter(pick);
+
+function capture({ c, mime, bps, audio, job, tick }) {
+  return new Promise((resolve, reject) => {
+    const st = c.captureStream(30);
+    audio && audio.getAudioTracks().forEach(t => st.addTrack(t));
+    const rec = new MediaRecorder(st, { mimeType: mime, videoBitsPerSecond: Math.round(bps), audioBitsPerSecond: 128000 });
+    const ch = []; let cancelled = false, iv;
+    rec.ondataavailable = e => e.data.size && ch.push(e.data);
+    rec.onerror = e => { clearInterval(iv); reject(e.error || new Error('recording failed')); };
+    rec.onstop = () => {
+      clearInterval(iv); st.getTracks().forEach(t => t.stop());
+      cancelled ? reject(new Error('cancelled')) : resolve(new Blob(ch, { type: mime.split(';')[0] }));
+    };
+    job.cancel = () => { cancelled = true; if (rec.state !== 'inactive') rec.stop(); };
+    rec.start(250);
+    iv = setInterval(() => { const p = tick(); if (p >= 1 && rec.state === 'recording') rec.stop(); }, 33);
+  });
+}
+
+/* shared run block for the two video panes */
+$$('[data-run]').forEach(p => {
+  const id = p.dataset.run;
+  p.insertAdjacentHTML('beforeend',
+    `<div class="row"><button class="btn" id="b-${id}" type="button" disabled>${p.dataset.label}</button><button class="btn" id="x-${id}" type="button" hidden>cancel</button></div>` +
+    `<div class="bar" id="bar-${id}"><i></i></div><div class="status" id="st-${id}" role="status"></div><div id="o-${id}"></div>`);
+});
+if (!FM.length) $$('[data-run] .row:first-of-type').forEach(() => {});
+function showOut(id, blob, name) {
+  const o = $('#o-' + id); o._u && URL.revokeObjectURL(o._u);
+  const u = o._u = URL.createObjectURL(blob);
+  o.innerHTML = '';
+  const v = document.createElement('video'); v.className = 'out'; v.src = u; v.controls = true; v.playsInline = true;
+  const r = document.createElement('div'); r.className = 'row';
+  const a = document.createElement('a'); a.className = 'btn'; a.href = u; a.download = name; a.textContent = 'download';
+  const m = document.createElement('span'); m.className = 'm'; m.textContent = name + ' · ' + fmtSize(blob.size);
+  r.append(a, m); o.append(v, r);
+}
+async function run(id, fn, ready) {
+  if (busy) return;
+  busy = true;
+  const b = $('#b-' + id), x = $('#x-' + id), bar = $('#bar-' + id), bi = $('i', bar), st = $('#st-' + id);
+  b.disabled = true; x.hidden = false; bar.classList.add('on'); st.className = 'status'; $('#o-' + id).innerHTML = '';
+  const job = { cancel() {} }; x.onclick = () => job.cancel();
+  const prog = (p, t) => { bi.style.width = (p * 100) + '%'; st.textContent = t; };
+  try {
+    const r = await fn(job, prog);
+    showOut(id, r.blob, r.name); st.textContent = 'done';
+  } catch (e) {
+    const msg = e && e.message;
+    st.textContent = msg === 'cancelled' ? 'cancelled' : (msg || 'something went wrong');
+    if (msg !== 'cancelled') st.classList.add('err');
+  } finally {
+    busy = false; b.disabled = !ready(); x.hidden = true; bar.classList.remove('on'); bi.style.width = 0;
+  }
+}
+function unsupported() {
+  ['video'].forEach(id => { const s = $('#st-' + id); s.textContent = 'this browser cannot record video. try a recent chrome, edge, safari or firefox.'; s.classList.add('err'); });
+}
+if (!FM.length) unsupported();
+
+/* ---------- image to video (video formats in the image tab) ---------- */
+let stop = false, ijob = { cancel() {} };
+const len = $('#n-len');
+const lenChips = chips($('#c-len'), [3, 5, 10, 30, 60], 5, v => { len.value = v; }, v => v + 's');
+len.addEventListener('input', () => lenChips.set(+len.value));
+$('#k-img').onclick = () => { stop = true; ijob.cancel(); };
+async function vidRow(r, ext) {
+  const secs = Math.min(600, Math.max(1, Math.round(+len.value) || 5)); len.value = secs; lenChips.set(secs);
+  let img;
+  try {
+    img = await loadImg(r.f);
+    let w = img.naturalWidth || img.width || 1280, h = img.naturalHeight || img.height || 720;
+    const s = Math.min(1, 1920 / Math.max(w, h)); w = even(w * s); h = even(h * s);
+    const c = document.createElement('canvas'); c.width = w; c.height = h;
+    const x = c.getContext('2d'), t0 = performance.now();
+    const draw = () => { x.fillStyle = '#000'; x.fillRect(0, 0, w, h); x.drawImage(img, 0, 0, w, h); };
+    draw();
+    ijob = { cancel() {} };
+    const blob = await capture({
+      c, mime: pick(ext), bps: Math.max(1.5e6, w * h * 30 * .05), job: ijob,
+      tick: () => { draw(); const t = Math.min(secs, (performance.now() - t0) / 1000); r.m.textContent = 'recording ' + tf(t) + ' / ' + tf(secs); return t / secs; }
+    });
+    r.url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.className = 't'; a.textContent = 'download'; a.href = r.url; a.download = baseName(r.f.name) + '.' + ext;
+    r.m.textContent = fmtSize(blob.size); r.li.append(a);
+  } catch (e) {
+    const cx = e.message === 'cancelled';
+    r.m.className = cx ? 'm' : 'm err'; r.m.textContent = cx ? 'cancelled' : (e.message || 'failed');
+  } finally { img && img.dispose(); }
+}
+
+/* ---------- video to video ---------- */
+let vfile = null;
+const vfmt = dropdown($('#f-vid'), () => [{ name: 'video', items: FM }], FM[0] || 'none');
+const vres = chips($('#c-vres'), ['original', '1080p', '720p', '480p'], 'original');
+const vq = chips($('#c-vq'), ['high', 'medium', 'low'], 'high');
+wire($('#d-video'), false, f => f.type.startsWith('video/'), ([f]) => { vfile = f; setDrop($('#d-video'), f.name); $('#b-video').disabled = busy || !FM.length; });
+$('#b-video').onclick = () => run('video', async (job, prog) => {
+  const f = vfile, url = URL.createObjectURL(f), fmt = vfmt.get();
+  const v = document.createElement('video');
+  v.src = url; v.playsInline = true; v.preload = 'auto';
+  let ac;
+  try {
+    await new Promise((ok, no) => { v.onloadedmetadata = ok; v.onerror = () => no(new Error('this browser cannot read that video')); });
+    if (!v.videoWidth) throw new Error('no video track found');
+    const H = vres.get() === 'original' ? Infinity : parseInt(vres.get());
+    const s = Math.min(1, H / v.videoHeight), w = even(v.videoWidth * s), h = even(v.videoHeight * s);
+    const c = document.createElement('canvas'); c.width = w; c.height = h;
+    const x = c.getContext('2d'), dur = isFinite(v.duration) ? v.duration : 0;
+    ac = new (window.AudioContext || window.webkitAudioContext)();
+    const dst = ac.createMediaStreamDestination();
+    ac.createMediaElementSource(v).connect(dst);
+    await ac.resume();
+    const bps = w * h * 30 * { high: .16, medium: .09, low: .045 }[vq.get()];
+    const job2 = capture({
+      c, mime: pick(fmt), bps, audio: dst.stream, job,
+      tick: () => {
+        x.drawImage(v, 0, 0, w, h);
+        const done = v.ended || (dur && v.currentTime >= dur - .05);
+        const p = done ? 1 : dur ? Math.min(.999, v.currentTime / dur) : 0;
+        prog(p, 'converting ' + tf(v.currentTime) + (dur ? ' / ' + tf(dur) : '') + (document.hidden ? ' · keep this tab visible' : ''));
+        return p;
+      }
+    });
+    await v.play();
+    const blob = await job2;
+    const same = f.name.toLowerCase().endsWith('.' + fmt);
+    return { blob, name: baseName(f.name) + (same ? '-converted' : '') + '.' + fmt };
+  } finally { v.pause(); ac && ac.close(); URL.revokeObjectURL(url); }
+}, () => !!vfile && FM.length > 0);
+})();
+</script>
+</body>
+</html>
