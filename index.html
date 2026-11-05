@@ -55,6 +55,7 @@ a.t{text-decoration:none}
 .note{margin:14px 0 0;font-size:12px;line-height:1.7;color:var(--dim)}
 .out{display:block;max-width:100%;max-height:340px;margin-top:22px;background:#000}
 video.out{width:100%}
+audio.out{width:100%;height:44px;background:none}
 .list{list-style:none;margin:22px 0 0;padding:0}
 .list:empty{display:none}
 .list li{display:flex;align-items:baseline;gap:14px;padding:11px 0;border-bottom:1px solid var(--line);font-size:13px}
@@ -105,6 +106,7 @@ li:hover .grip{color:var(--mid)}
   <nav aria-label="tools">
     <button class="t" data-tab="image" type="button">image</button>
     <button class="t" data-tab="video" type="button">video</button>
+    <button class="t" data-tab="audio" type="button">audio</button>
     <button class="t" data-tab="gif" type="button">gif maker</button>
     <span class="soon" aria-disabled="true">download from social media<em>coming soon</em></span>
   </nav>
@@ -128,6 +130,14 @@ li:hover .grip{color:var(--mid)}
     <div class="row"><span class="lbl">size</span><div class="chips" id="c-vres"></div></div>
     <div class="row"><span class="lbl">quality</span><div class="chips" id="c-vq"></div></div>
     <p class="note">video is converted in real time, so a two minute clip takes two minutes. keep this tab open and visible while it runs.</p>
+  </section>
+
+  <section class="pane" id="p-audio" data-run="audio" data-label="convert">
+    <label class="drop" id="d-audio"><input type="file" accept="audio/*,video/*"><span class="dt"><b>choose audio</b>&nbsp;or drop it here</span></label>
+    <div class="row"><span class="lbl s">to</span><button class="btn sel" id="f-aud" type="button" aria-haspopup="dialog"></button></div>
+    <div class="row"><span class="lbl">rate</span><div class="chips" id="c-ar"></div></div>
+    <div class="row"><span class="lbl">channels</span><div class="chips" id="c-ac"></div></div>
+    <p class="note">video files work too, the sound is pulled out. wav, aiff, au and pcm are instant. mp3 fetches its encoder once. opus, ogg and m4a run in real time, so keep this tab visible.</p>
   </section>
 
   <section class="pane" id="p-gif" data-run="gif" data-label="make gif">
@@ -491,9 +501,9 @@ $$('[data-run]').forEach(p => {
 });
 function showOut(id, blob, name) {
   const o = $('#o-' + id); o._u && URL.revokeObjectURL(o._u);
-  const u = o._u = URL.createObjectURL(blob), g = blob.type === 'image/gif';
+  const u = o._u = URL.createObjectURL(blob), g = blob.type === 'image/gif', au = id === 'audio';
   o.innerHTML = '';
-  const v = document.createElement(g ? 'img' : 'video'); v.className = 'out'; v.src = u;
+  const v = document.createElement(g ? 'img' : au ? 'audio' : 'video'); v.className = 'out'; v.src = u;
   if (g) v.alt = 'preview'; else { v.controls = true; v.playsInline = true; }
   const r = document.createElement('div'); r.className = 'row';
   const a = document.createElement('a'); a.className = 'btn'; a.href = u; a.download = name; a.textContent = 'download';
@@ -611,12 +621,12 @@ function gshift(items, from, to, h) {
     e.style.transform = from < to && j > from && j <= to ? 'translateY(' + -h + 'px)' : from > to && j >= to && j < from ? 'translateY(' + h + 'px)' : '';
   });
 }
-function gcommit(from, to) { if (from !== to) gf.splice(to, 0, gf.splice(from, 1)[0]); gmove = false; gdraw(); }
+function gcommit(f, to) { const k = gf.indexOf(f); if (k > -1 && k !== to) { gf.splice(k, 1); gf.splice(to, 0, f); } gmove = false; gdraw(); }
 let lastTouch = 0;
 function gdrag(li, i, ul, y0, touch) {
   gmove = true;
   const items = [...ul.children], n = items.length, tops = items.map(el => el.offsetTop), h = li.offsetHeight;
-  let to = i;
+  let to = i, done = false; const f = gf[i];
   li.classList.add('drag');
   const move = y => {
     const dy = Math.max(tops[0] - tops[i], Math.min(tops[n - 1] - tops[i], y - y0));
@@ -628,10 +638,11 @@ function gdrag(li, i, ul, y0, touch) {
   const onm = ev => move(ev.clientY);
   const ont = ev => { ev.preventDefault(); if (ev.touches[0]) move(ev.touches[0].clientY); };
   const end = () => {
+    if (done) return; done = true;
     removeEventListener('mousemove', onm); removeEventListener('mouseup', end);
     li.removeEventListener('touchmove', ont); li.removeEventListener('touchend', end); li.removeEventListener('touchcancel', end);
     li.classList.remove('drag'); li.style.transition = EASE; li.style.transform = 'translateY(' + (tops[to] - tops[i]) + 'px)';
-    setTimeout(() => gcommit(i, to), 180);
+    setTimeout(() => gcommit(f, to), 180);
   };
   if (touch) { li.addEventListener('touchmove', ont, { passive: false }); li.addEventListener('touchend', end); li.addEventListener('touchcancel', end); }
   else { addEventListener('mousemove', onm); addEventListener('mouseup', end); }
@@ -642,7 +653,7 @@ function gdraw() {
     const j = i + d; if (j < 0 || j >= gf.length || gmove) return; gmove = true;
     const items = [...ul.children], h = items[i].offsetHeight;
     items[i].style.zIndex = 2; items[i].style.transition = EASE; items[i].style.transform = 'translateY(' + d * h + 'px)';
-    gshift(items, i, j, h); setTimeout(() => gcommit(i, j), 180);
+    gshift(items, i, j, h); const f = gf[i]; setTimeout(() => gcommit(f, j), 180);
   };
   gf.forEach((f, i) => {
     const li = document.createElement('li');
@@ -692,6 +703,83 @@ $('#b-gif').onclick = () => run('gif', async (job, prog) => {
   prog(1, 'finishing');
   return { blob: new Blob(parts, { type: 'image/gif' }), name: 'animation.gif' };
 }, () => gf.length > 0);
+
+/* ---------- audio ---------- */
+Object.assign(AL, { mp3: 'mpeg', 'wav 8': 'unsigned', 'wav 24': 'hi-res', 'wav 32f': 'float', aiff: 'apple', au: 'sun', pcm: 'raw', 'webm opus': 'opus weba', 'ogg opus': 'opus oga', 'm4a aac': 'aac mp4' });
+const REC = { 'webm opus': { x: 'webm', m: ['audio/webm;codecs=opus'] }, 'ogg opus': { x: 'ogg', m: ['audio/ogg;codecs=opus'] }, 'm4a aac': { x: 'm4a', m: ['audio/mp4;codecs=mp4a.40.2', 'audio/mp4'] } };
+const recOk = k => typeof MediaRecorder !== 'undefined' && REC[k].m.find(m => MediaRecorder.isTypeSupported(m));
+const PCMF = { wav: ['wav', 16], 'wav 8': ['wav', 8], 'wav 24': ['wav', 24], 'wav 32f': ['wav', 32, 1], aiff: ['aiff', 16], au: ['au', 16], pcm: ['pcm', 16] };
+const AUF = [...Object.keys(PCMF), 'mp3', ...Object.keys(REC).filter(recOk)];
+const wr = (v, o, t) => { for (let i = 0; i < t.length; i++) v.setUint8(o + i, t.charCodeAt(i)); };
+function pcmBytes(b, bits, fl, be) {
+  const ch = b.numberOfChannels, n = b.length, k = bits / 8, o = new Uint8Array(n * ch * k), v = new DataView(o.buffer), D = [];
+  for (let c = 0; c < ch; c++) D.push(b.getChannelData(c));
+  for (let i = 0, p = 0; i < n; i++) for (let c = 0; c < ch; c++, p += k) {
+    const x = Math.max(-1, Math.min(1, D[c][i]));
+    if (fl) v.setFloat32(p, x, !be);
+    else if (bits === 8) o[p] = Math.round(x * 127) + 128;
+    else if (bits === 16) v.setInt16(p, Math.round(x < 0 ? x * 32768 : x * 32767), !be);
+    else { const q = Math.round(x < 0 ? x * 8388608 : x * 8388607); if (be) { o[p] = q >> 16; o[p + 1] = q >> 8; o[p + 2] = q; } else { o[p] = q; o[p + 1] = q >> 8; o[p + 2] = q >> 16; } }
+  }
+  return o;
+}
+function pcmFile(b, [kind, bits, fl]) {
+  const d = pcmBytes(b, bits, fl, kind === 'aiff' || kind === 'au'), ch = b.numberOfChannels, sr = b.sampleRate;
+  if (kind === 'pcm') return new Blob([d], { type: 'audio/x-raw' });
+  const hl = kind === 'wav' ? 44 : kind === 'aiff' ? 54 : 24, o = new Uint8Array(hl + d.length), v = new DataView(o.buffer);
+  if (kind === 'wav') { wr(v, 0, 'RIFF'); v.setUint32(4, 36 + d.length, true); wr(v, 8, 'WAVEfmt '); v.setUint32(16, 16, true); v.setUint16(20, fl ? 3 : 1, true); v.setUint16(22, ch, true); v.setUint32(24, sr, true); v.setUint32(28, sr * ch * bits / 8, true); v.setUint16(32, ch * bits / 8, true); v.setUint16(34, bits, true); wr(v, 36, 'data'); v.setUint32(40, d.length, true); }
+  else if (kind === 'aiff') { wr(v, 0, 'FORM'); v.setUint32(4, 46 + d.length); wr(v, 8, 'AIFFCOMM'); v.setUint32(16, 18); v.setUint16(20, ch); v.setUint32(22, b.length); v.setUint16(26, bits); const e = Math.floor(Math.log2(sr)); v.setUint16(28, 16383 + e); v.setBigUint64(30, BigInt(sr) << BigInt(63 - e)); wr(v, 38, 'SSND'); v.setUint32(42, 8 + d.length); }
+  else { wr(v, 0, '.snd'); v.setUint32(4, 24); v.setUint32(8, d.length); v.setUint32(12, 3); v.setUint32(16, sr); v.setUint32(20, ch); }
+  o.set(d, hl); return new Blob([o], { type: 'audio/' + kind });
+}
+async function reshape(b, sr, tc) {
+  if (b.sampleRate === sr && b.numberOfChannels === tc) return b;
+  const oc = new OfflineAudioContext(tc, Math.max(1, Math.ceil(b.length * sr / b.sampleRate)), sr), s = oc.createBufferSource();
+  s.buffer = b; s.connect(oc.destination); s.start(); return oc.startRendering();
+}
+async function mp3(b, prog, off) {
+  if (!window.lamejs) await new Promise((ok, no) => { const s = document.createElement('script'); s.src = 'https://cdnjs.cloudflare.com/ajax/libs/lamejs/1.2.1/lame.min.js'; s.onload = ok; s.onerror = () => no(new Error('could not load the mp3 encoder, check your connection')); document.head.append(s); });
+  const ch = b.numberOfChannels, e = new lamejs.Mp3Encoder(ch, b.sampleRate, 320), out = [];
+  const I = []; for (let c = 0; c < ch; c++) { const d = b.getChannelData(c), a = new Int16Array(d.length); for (let i = 0; i < d.length; i++) { const x = Math.max(-1, Math.min(1, d[i])); a[i] = x < 0 ? x * 32768 : x * 32767; } I.push(a); }
+  for (let i = 0, k = 0; i < b.length; i += 1152, k++) {
+    const m = e.encodeBuffer(I[0].subarray(i, i + 1152), ch > 1 ? I[1].subarray(i, i + 1152) : undefined);
+    if (m.length) out.push(m);
+    if (k % 80 === 0) { prog(i / b.length); await tick(); if (off()) throw new Error('cancelled'); }
+  }
+  out.push(e.flush()); return new Blob(out, { type: 'audio/mpeg' });
+}
+function recAudio(b, mime, job, prog) {
+  return new Promise(res => {
+    const ac = new AudioContext(), dst = ac.createMediaStreamDestination(), src = ac.createBufferSource(); src.buffer = b; src.connect(dst);
+    const rec = new MediaRecorder(dst.stream, { mimeType: mime, audioBitsPerSecond: 256000 }), ch = []; let cx = false, iv;
+    rec.ondataavailable = e => e.data.size && ch.push(e.data);
+    rec.onstop = () => { clearInterval(iv); ac.close(); res(cx ? null : new Blob(ch, { type: mime.split(';')[0] })); };
+    job.cancel = () => { cx = true; src.onended = null; if (rec.state !== 'inactive') rec.stop(); };
+    src.onended = () => rec.state !== 'inactive' && rec.stop();
+    ac.resume(); rec.start(250); src.start();
+    iv = setInterval(() => prog(Math.min(.999, ac.currentTime / b.duration)), 100);
+  });
+}
+let afile = null;
+const afmt = dropdown($('#f-aud'), () => [{ name: 'audio', items: AUF }], 'wav');
+const ars = chips($('#c-ar'), ['original', 48000, 44100, 22050, 16000], 'original', null, v => v === 'original' ? v : v / 1000 + ' khz');
+const ach = chips($('#c-ac'), ['original', 'mono'], 'original');
+wire($('#d-audio'), false, f => /^(audio|video)\//.test(f.type), ([f]) => { afile = f; setDrop($('#d-audio'), f.name); $('#b-audio').disabled = busy; });
+$('#b-audio').onclick = () => run('audio', async (job, prog) => {
+  let off = false; job.cancel = () => { off = true; };
+  const f = afile, fmt = afmt.get(), ac = new (window.AudioContext || window.webkitAudioContext)();
+  let b; prog(0, 'reading');
+  try { b = await ac.decodeAudioData(await f.arrayBuffer()); } catch { throw new Error('could not read audio from that file'); } finally { ac.close(); }
+  let sr = ars.get() === 'original' ? b.sampleRate : ars.get(), tc = ach.get() === 'mono' ? 1 : b.numberOfChannels;
+  if (fmt === 'mp3') { tc = Math.min(tc, 2); sr = Math.min(48000, Math.max(8000, sr)); }
+  b = await reshape(b, sr, tc);
+  let blob, x;
+  if (PCMF[fmt]) { prog(.5, 'encoding'); await tick(); blob = pcmFile(b, PCMF[fmt]); x = PCMF[fmt][0]; }
+  else if (fmt === 'mp3') { blob = await mp3(b, p => prog(p, 'encoding'), () => off); x = 'mp3'; }
+  else { blob = await recAudio(b, recOk(fmt), job, p => prog(p, 'encoding')); x = REC[fmt].x; }
+  if (!blob || off) throw new Error('cancelled');
+  return { blob, name: baseName(f.name) + (f.name.toLowerCase().endsWith('.' + x) ? '-converted' : '') + '.' + x };
+}, () => !!afile);
 })();
 </script>
 </body>
