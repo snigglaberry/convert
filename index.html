@@ -20,8 +20,6 @@ a.t{text-decoration:none}
 .t:hover,.t:focus-visible{color:#fff;text-decoration:underline;text-underline-offset:4px}
 .t[aria-current],.t[aria-pressed=true]{color:#fff;border-bottom-color:#666}
 .t[aria-current]:hover,.t[aria-pressed=true]:hover{border-bottom-color:transparent}
-.soon{font-size:13px;color:var(--dim);opacity:.28;cursor:default;user-select:none;padding-bottom:3px}
-.soon em{font-style:normal;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;margin-left:7px}
 :focus-visible{outline:1px solid #888;outline-offset:3px}
 .pane{display:none}
 .pane.on{display:block;animation:in .3s ease}
@@ -112,7 +110,7 @@ li:hover .grip{color:var(--mid)}
     <button class="t" data-tab="video" type="button">video</button>
     <button class="t" data-tab="audio" type="button">audio</button>
     <button class="t" data-tab="gif" type="button">gif maker</button>
-    <span class="soon" aria-disabled="true">download from social media<em>coming soon</em></span>
+    <button class="t" data-tab="document" type="button">document</button>
   </nav>
 
   <section class="pane" id="p-image">
@@ -153,6 +151,12 @@ li:hover .grip{color:var(--mid)}
     <div class="row"><span class="lbl">size</span><div class="chips" id="c-gs"></div></div>
     <div class="row"><span class="lbl">loop</span><div class="chips" id="c-gl"></div></div>
     <p class="note">every image is fitted to the size of the first one. gifs are limited to 256 colors per frame, and smaller sizes make smaller files.</p>
+  </section>
+
+  <section class="pane" id="p-document" data-run="document" data-label="convert">
+    <label class="drop" id="d-document"><input type="file" accept=".docx,.pdf,.txt,.md,.markdown,.html,.htm,.csv,.tsv,.xlsx,.xls,.ods,.json"><span class="dt"><b>choose a document</b>&nbsp;or drop it here</span></label>
+    <div class="row"><span class="lbl s">to</span><button class="btn sel" id="f-doc" type="button" aria-haspopup="dialog"></button></div>
+    <p class="note">text, headings, lists and tables are kept. images and page layout are not. pdf output supports latin text only. csv and xlsx need a table in the source. the first use of each format fetches its converter once.</p>
   </section>
 
 </main>
@@ -496,7 +500,7 @@ function capture({ c, mime, bps, audio, job, tick }) {
   });
 }
 
-/* shared run block for the video and gif panes */
+/* shared run block for the video, gif and document panes */
 $$('[data-run]').forEach(p => {
   const id = p.dataset.run;
   p.insertAdjacentHTML('beforeend',
@@ -507,12 +511,12 @@ function showOut(id, blob, name) {
   const o = $('#o-' + id); o._u && URL.revokeObjectURL(o._u);
   const u = o._u = URL.createObjectURL(blob), g = blob.type === 'image/gif', au = id === 'audio';
   o.innerHTML = '';
-  const v = document.createElement(g ? 'img' : au ? 'audio' : 'video'); v.className = 'out'; v.src = u;
-  if (g) v.alt = 'preview'; else { v.controls = true; v.playsInline = true; }
+  const v = id === 'document' ? null : document.createElement(g ? 'img' : au ? 'audio' : 'video');
+  if (v) { v.className = 'out'; v.src = u; if (g) v.alt = 'preview'; else { v.controls = true; v.playsInline = true; } }
   const r = document.createElement('div'); r.className = 'row';
   const a = document.createElement('a'); a.className = 'btn'; a.href = u; a.download = name; a.textContent = 'download';
   const m = document.createElement('span'); m.className = 'm'; m.textContent = name + ' · ' + fmtSize(blob.size);
-  r.append(a, m); o.append(v, r);
+  r.append(a, m); o.append(...(v ? [v, r] : [r]));
 }
 async function run(id, fn, ready) {
   if (busy) return;
@@ -789,6 +793,172 @@ $('#b-audio').onclick = () => run('audio', async (job, prog) => {
   if (!blob || off) throw new Error('cancelled');
   return { blob, name: baseName(f.name) + (f.name.toLowerCase().endsWith('.' + x) ? '-converted' : '') + '.' + x };
 }, () => !!afile);
+
+/* ---------- document ---------- */
+const CDN = 'https://cdnjs.cloudflare.com/ajax/libs/';
+const LIB = { mammoth: ['mammoth/1.6.0/mammoth.browser.min.js', 'mammoth'], marked: ['marked/4.3.0/marked.min.js', 'marked'], turndown: ['turndown/7.1.2/turndown.min.js', 'TurndownService'], jszip: ['jszip/3.10.1/jszip.min.js', 'JSZip'], jspdf: ['jspdf/2.5.1/jspdf.umd.min.js', 'jspdf'], xlsx: ['xlsx/0.18.5/xlsx.full.min.js', 'XLSX'], pdfjs: ['pdf.js/3.11.174/pdf.min.js', 'pdfjsLib'] };
+const LP = {};
+const lib = k => LP[k] || (LP[k] = new Promise((ok, no) => {
+  if (window[LIB[k][1]]) return ok();
+  const s = document.createElement('script'); s.src = CDN + LIB[k][0]; s.onload = ok;
+  s.onerror = () => { delete LP[k]; no(new Error('could not load a converter, check your connection')); };
+  document.head.append(s);
+}));
+const esc = s => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+const fx = n => (n.split('.').pop() || '').toLowerCase();
+
+async function pdfHtml(f, prog, off) {
+  await lib('pdfjs');
+  const P = pdfjsLib;
+  if (!P.GlobalWorkerOptions.workerSrc) {
+    const t = await (await fetch(CDN + 'pdf.js/3.11.174/pdf.worker.min.js')).text();
+    P.GlobalWorkerOptions.workerSrc = URL.createObjectURL(new Blob([t], { type: 'text/javascript' }));
+  }
+  const pdf = await P.getDocument({ data: new Uint8Array(await f.arrayBuffer()) }).promise, L = [];
+  for (let p = 1; p <= pdf.numPages; p++) {
+    if (off()) throw new Error('cancelled');
+    prog(p / pdf.numPages * .6, 'reading page ' + p + ' of ' + pdf.numPages);
+    const tc = await (await pdf.getPage(p)).getTextContent(); let cur = null;
+    for (const it of tc.items) {
+      const y = it.transform[5];
+      if (!cur || Math.abs(cur.y - y) > 2) { cur = { s: '', y, h: it.height || 0, pg: p }; L.push(cur); }
+      cur.s += it.str; cur.h = Math.max(cur.h, it.height || 0);
+    }
+  }
+  const ls = L.filter(l => l.s.trim());
+  if (!ls.length) throw new Error('no selectable text in that pdf, it may be a scan');
+  const hs = ls.map(l => l.h).sort((a, b) => a - b), med = hs[hs.length >> 1] || 10;
+  let out = '', para = [], prev = null;
+  const fl = () => { if (para.length) out += '<p>' + esc(para.join(' ').replace(/\s+/g, ' ').trim()) + '</p>'; para = []; };
+  for (const l of ls) {
+    const gap = prev && prev.pg === l.pg ? prev.y - l.y : 0;
+    if (l.h > med * 1.25 && l.s.length < 90) { fl(); out += '<h2>' + esc(l.s.trim()) + '</h2>'; }
+    else { if (prev && prev.pg === l.pg && (gap < 0 || gap > Math.max(l.h, med) * 1.8)) fl(); para.push(l.s.trim()); }
+    prev = l;
+  }
+  fl(); return out;
+}
+async function toHtml(f, prog, off) {
+  const e = fx(f.name);
+  if (['txt', 'text', 'log'].includes(e)) return esc(await f.text()).split(/\n\s*\n/).map(p => '<p>' + p.trim().replace(/\n/g, '<br>') + '</p>').join('');
+  if (e === 'md' || e === 'markdown') { await lib('marked'); return marked.parse(await f.text()); }
+  if (e === 'html' || e === 'htm') return new DOMParser().parseFromString(await f.text(), 'text/html').body.innerHTML;
+  if (e === 'json') { const t = await f.text(); let s = t; try { s = JSON.stringify(JSON.parse(t), null, 2); } catch {} return '<pre>' + esc(s) + '</pre>'; }
+  if (e === 'docx') { await lib('mammoth'); return (await mammoth.convertToHtml({ arrayBuffer: await f.arrayBuffer() })).value; }
+  if (e === 'pdf') return pdfHtml(f, prog, off);
+  if (['csv', 'tsv', 'xlsx', 'xls', 'ods'].includes(e)) {
+    await lib('xlsx');
+    const wb = XLSX.read(await f.arrayBuffer(), { type: 'array' }), n = wb.SheetNames.length;
+    return wb.SheetNames.map(s => (n > 1 ? '<h2>' + esc(s) + '</h2>' : '') + XLSX.utils.sheet_to_html(wb.Sheets[s], { header: '', footer: '' })).join('');
+  }
+  throw new Error(e === 'doc' ? 'old .doc files are not supported, save it as docx first' : 'cannot read .' + e + ' files');
+}
+
+/* flatten the document into simple blocks: h1-h6, p, pre, li, tr, blockquote */
+const BL = /^(h[1-6]|p|pre|li|tr|blockquote)$/, CT = /^(div|section|article|main|body|ul|ol|table|thead|tbody|tfoot|figure|header|footer|nav|aside|dl|dd|dt|td|th|caption|center)$/;
+function blocks(root) {
+  const out = [];
+  const walk = n => {
+    let buf = '';
+    const flush = () => { if (buf.trim()) out.push({ k: 'p', t: buf.replace(/\s+/g, ' ').trim() }); buf = ''; };
+    n.childNodes.forEach(c => {
+      if (c.nodeType === 3) { buf += c.nodeValue; return; }
+      if (c.nodeType !== 1) return;
+      const g = c.tagName.toLowerCase();
+      if (g === 'br') buf += ' ';
+      else if (BL.test(g)) {
+        flush();
+        const t = g === 'tr' ? [...c.cells].map(x => x.textContent.trim()).join(' | ') : g === 'pre' ? c.textContent : c.textContent.replace(/\s+/g, ' ').trim();
+        if (t.trim()) out.push({ k: g, t });
+      } else if (CT.test(g)) { flush(); walk(c); }
+      else buf += c.textContent;
+    });
+    flush();
+  };
+  walk(root); return out;
+}
+const joinB = bs => bs.map((b, i) => {
+  const p = bs[i - 1], s = b.k === 'li' ? '• ' + b.t : b.t;
+  return (i ? (p && p.k === b.k && (b.k === 'li' || b.k === 'tr') ? '\n' : '\n\n') : '') + s;
+}).join('');
+
+async function mkDocx(bs) {
+  await lib('jszip');
+  const z = new JSZip(), W = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main', H = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>';
+  const X = s => s.replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const run = (t, rp) => '<w:r>' + (rp ? '<w:rPr>' + rp + '</w:rPr>' : '') + t.split('\n').map(l => '<w:t xml:space="preserve">' + X(l) + '</w:t>').join('<w:br/>') + '</w:r>';
+  const body = bs.map(b => {
+    if (/^h[1-6]$/.test(b.k)) return '<w:p><w:pPr><w:pStyle w:val="Heading' + b.k[1] + '"/></w:pPr>' + run(b.t) + '</w:p>';
+    if (b.k === 'pre') return '<w:p>' + run(b.t, '<w:rFonts w:ascii="Courier New" w:hAnsi="Courier New"/><w:sz w:val="20"/>') + '</w:p>';
+    if (b.k === 'li') return '<w:p><w:pPr><w:ind w:left="360" w:hanging="240"/></w:pPr>' + run('• ' + b.t) + '</w:p>';
+    return '<w:p>' + run(b.t) + '</w:p>';
+  }).join('');
+  const sz = [40, 32, 28, 26, 24, 22];
+  const styles = H + '<w:styles xmlns:w="' + W + '"><w:docDefaults><w:rPrDefault><w:rPr><w:rFonts w:ascii="Calibri" w:hAnsi="Calibri" w:cs="Calibri"/><w:sz w:val="22"/></w:rPr></w:rPrDefault><w:pPrDefault><w:pPr><w:spacing w:after="160" w:line="276" w:lineRule="auto"/></w:pPr></w:pPrDefault></w:docDefaults><w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/></w:style>' +
+    sz.map((s, i) => '<w:style w:type="paragraph" w:styleId="Heading' + (i + 1) + '"><w:name w:val="heading ' + (i + 1) + '"/><w:basedOn w:val="Normal"/><w:next w:val="Normal"/><w:qFormat/><w:pPr><w:keepNext/><w:spacing w:before="320" w:after="120"/><w:outlineLvl w:val="' + i + '"/></w:pPr><w:rPr><w:b/><w:sz w:val="' + s + '"/></w:rPr></w:style>').join('') + '</w:styles>';
+  const R = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships', PR = 'http://schemas.openxmlformats.org/package/2006/relationships';
+  z.file('[Content_Types].xml', H + '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/><Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/></Types>');
+  z.file('_rels/.rels', H + '<Relationships xmlns="' + PR + '"><Relationship Id="rId1" Type="' + R + '/officeDocument" Target="word/document.xml"/></Relationships>');
+  z.file('word/_rels/document.xml.rels', H + '<Relationships xmlns="' + PR + '"><Relationship Id="rId1" Type="' + R + '/styles" Target="styles.xml"/></Relationships>');
+  z.file('word/styles.xml', styles);
+  z.file('word/document.xml', H + '<w:document xmlns:w="' + W + '"><w:body>' + body + '<w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="1440" w:right="1440" w:bottom="1440" w:left="1440" w:header="708" w:footer="708" w:gutter="0"/></w:sectPr></w:body></w:document>');
+  return z.generateAsync({ type: 'blob', mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+}
+async function mkPdf(bs) {
+  await lib('jspdf');
+  const d = new jspdf.jsPDF({ unit: 'pt', format: 'a4' }), PW = d.internal.pageSize.getWidth(), PH = d.internal.pageSize.getHeight(), M = 56, SZ = { h1: 22, h2: 18, h3: 15, h4: 13, h5: 12, h6: 11 };
+  const clean = t => t.replace(/[^\x09\x0a\x20-\x7e\xa0-\xff\u2018\u2019\u201c\u201d\u2013\u2014\u2022\u2026\u20ac]/g, '?');
+  let y = M;
+  bs.forEach(b => {
+    const hd = /^h[1-6]$/.test(b.k), fs = SZ[b.k] || (b.k === 'pre' ? 9 : 11), ind = b.k === 'li' ? 14 : 0;
+    d.setFont(b.k === 'pre' ? 'courier' : 'helvetica', hd ? 'bold' : 'normal'); d.setFontSize(fs);
+    const lh = fs * 1.35, ls = d.splitTextToSize(clean((b.k === 'li' ? '• ' : '') + b.t), PW - 2 * M - ind);
+    if (hd) y += fs * .6;
+    ls.forEach(l => { if (y + lh > PH - M) { d.addPage(); y = M; } d.text(l, M + ind, y + fs * .85); y += lh; });
+    y += b.k === 'li' || b.k === 'tr' ? 3 : fs * .5;
+  });
+  return d.output('blob');
+}
+
+let dfile = null;
+Object.assign(AL, { docx: 'word', md: 'markdown', txt: 'text plain', xlsx: 'excel spreadsheet', csv: 'spreadsheet' });
+const dfmt = dropdown($('#f-doc'), () => [{ name: 'document', items: ['docx', 'pdf', 'txt', 'md', 'html'] }, { name: 'table', items: ['csv', 'xlsx'] }], 'pdf');
+wire($('#d-document'), false, () => true, ([f]) => { dfile = f; setDrop($('#d-document'), f.name); $('#b-document').disabled = busy; });
+$('#b-document').onclick = () => run('document', async (job, prog) => {
+  let off = false; job.cancel = () => { off = true; };
+  const f = dfile, o = dfmt.get();
+  prog(0, 'reading');
+  const root = new DOMParser().parseFromString(await toHtml(f, prog, () => off), 'text/html').body;
+  root.querySelectorAll('script,iframe,object,embed,style').forEach(n => n.remove());
+  if (!root.textContent.trim()) throw new Error('nothing readable in that file');
+  prog(.7, 'writing ' + o); await tick();
+  const tables = () => { const t = [...root.querySelectorAll('table')]; if (!t.length) throw new Error('no table found in that file, csv and xlsx need one'); return t; };
+  let blob;
+  if (o === 'html') blob = new Blob(['<!DOCTYPE html>\n<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>' + esc(baseName(f.name)) + '</title><style>body{font:16px/1.6 Georgia,serif;max-width:760px;margin:40px auto;padding:0 20px;color:#222}table{border-collapse:collapse}td,th{border:1px solid #bbb;padding:4px 8px}pre{white-space:pre-wrap;background:#f4f4f4;padding:12px}img{max-width:100%}</style></head><body>' + root.innerHTML + '</body></html>'], { type: 'text/html' });
+  else if (o === 'txt') blob = new Blob([joinB(blocks(root))], { type: 'text/plain;charset=utf-8' });
+  else if (o === 'md') {
+    await lib('turndown');
+    const td = new TurndownService({ headingStyle: 'atx', bulletListMarker: '-', codeBlockStyle: 'fenced' });
+    td.addRule('tbl', { filter: 'table', replacement: (c, n) => {
+      const rs = [...n.rows].map(r => [...r.cells].map(x => x.textContent.trim().replace(/\s+/g, ' ').replace(/\|/g, '\\|')));
+      if (!rs.length) return '';
+      const w = Math.max(...rs.map(r => r.length)), L = r => '| ' + Array.from({ length: w }, (_, i) => r[i] || '').join(' | ') + ' |';
+      return '\n\n' + [L(rs[0]), '|' + ' --- |'.repeat(w), ...rs.slice(1).map(L)].join('\n') + '\n\n';
+    } });
+    blob = new Blob([td.turndown(root.innerHTML)], { type: 'text/markdown;charset=utf-8' });
+  }
+  else if (o === 'docx') blob = await mkDocx(blocks(root));
+  else if (o === 'pdf') blob = await mkPdf(blocks(root));
+  else if (o === 'csv') { await lib('xlsx'); blob = new Blob(['\ufeff' + XLSX.utils.sheet_to_csv(XLSX.utils.table_to_sheet(tables()[0]))], { type: 'text/csv;charset=utf-8' }); }
+  else if (o === 'xlsx') {
+    await lib('xlsx');
+    const wb = XLSX.utils.book_new();
+    tables().forEach((t, i) => XLSX.utils.book_append_sheet(wb, XLSX.utils.table_to_sheet(t), 'Table ' + (i + 1)));
+    blob = new Blob([XLSX.write(wb, { bookType: 'xlsx', type: 'array' })], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  }
+  if (off) throw new Error('cancelled');
+  return { blob, name: baseName(f.name) + (fx(f.name) === o ? '-converted' : '') + '.' + o };
+}, () => !!dfile);
 })();
 </script>
 </body>
