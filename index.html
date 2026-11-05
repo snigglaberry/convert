@@ -612,6 +612,30 @@ function gshift(items, from, to, h) {
   });
 }
 function gcommit(from, to) { if (from !== to) gf.splice(to, 0, gf.splice(from, 1)[0]); gmove = false; gdraw(); }
+let lastTouch = 0;
+function gdrag(li, i, ul, y0, touch) {
+  gmove = true;
+  const items = [...ul.children], n = items.length, tops = items.map(el => el.offsetTop), h = li.offsetHeight;
+  let to = i;
+  li.classList.add('drag');
+  const move = y => {
+    const dy = Math.max(tops[0] - tops[i], Math.min(tops[n - 1] - tops[i], y - y0));
+    li.style.transform = 'translateY(' + dy + 'px)';
+    const mid = tops[i] + dy + h / 2; let t = 0;
+    while (t < n - 1 && mid > tops[t + 1]) t++;
+    if (t !== to) { to = t; gshift(items, i, to, h); }
+  };
+  const onm = ev => move(ev.clientY);
+  const ont = ev => { ev.preventDefault(); if (ev.touches[0]) move(ev.touches[0].clientY); };
+  const end = () => {
+    removeEventListener('mousemove', onm); removeEventListener('mouseup', end);
+    li.removeEventListener('touchmove', ont); li.removeEventListener('touchend', end); li.removeEventListener('touchcancel', end);
+    li.classList.remove('drag'); li.style.transition = EASE; li.style.transform = 'translateY(' + (tops[to] - tops[i]) + 'px)';
+    setTimeout(() => gcommit(i, to), 180);
+  };
+  if (touch) { li.addEventListener('touchmove', ont, { passive: false }); li.addEventListener('touchend', end); li.addEventListener('touchcancel', end); }
+  else { addEventListener('mousemove', onm); addEventListener('mouseup', end); }
+}
 function gdraw() {
   const ul = $('#l-gif'); ul.innerHTML = '';
   const mv = (i, d) => {
@@ -626,27 +650,15 @@ function gdraw() {
     li.children[1].textContent = (i + 1) + '. ' + f.name; li.children[2].textContent = fmtSize(f.size);
     const b = $$('button', li);
     b[0].onclick = () => mv(i, -1); b[1].onclick = () => mv(i, 1); b[2].onclick = () => { if (!gmove) { gf.splice(i, 1); gdraw(); } };
-    li.onpointerdown = e => {
-      if (e.button || gmove || e.target.closest('button')) return;
-      e.preventDefault(); gmove = true;
-      const items = [...ul.children], n = items.length, tops = items.map(el => el.offsetTop), h = li.offsetHeight, y0 = e.clientY;
-      let to = i;
-      li.classList.add('drag');
-      const noScroll = ev => ev.preventDefault();
-      const move = ev => {
-        const dy = Math.max(tops[0] - tops[i], Math.min(tops[n - 1] - tops[i], ev.clientY - y0));
-        li.style.transform = 'translateY(' + dy + 'px)';
-        const mid = tops[i] + dy + h / 2; let t = 0;
-        while (t < n - 1 && mid > tops[t + 1]) t++;
-        if (t !== to) { to = t; gshift(items, i, to, h); }
-      };
-      const end = () => {
-        removeEventListener('pointermove', move); removeEventListener('pointerup', end); removeEventListener('pointercancel', end); removeEventListener('touchmove', noScroll);
-        li.classList.remove('drag'); li.style.transition = EASE; li.style.transform = 'translateY(' + (tops[to] - tops[i]) + 'px)';
-        setTimeout(() => gcommit(i, to), 180);
-      };
-      addEventListener('pointermove', move); addEventListener('pointerup', end); addEventListener('pointercancel', end); addEventListener('touchmove', noScroll, { passive: false });
+    li.onmousedown = e => {
+      if (e.button || gmove || Date.now() - lastTouch < 700 || e.target.closest('button')) return;
+      e.preventDefault(); gdrag(li, i, ul, e.clientY, false);
     };
+    li.addEventListener('touchstart', e => {
+      lastTouch = Date.now();
+      if (gmove || e.touches.length !== 1 || e.target.closest('button')) return;
+      gdrag(li, i, ul, e.touches[0].clientY, true);
+    }, { passive: true });
     ul.append(li);
   });
   $('#b-gif').disabled = busy || !gf.length; $('#z-gif').hidden = !gf.length;
