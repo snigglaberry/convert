@@ -79,10 +79,13 @@ video.out{width:100%}
 ::-webkit-scrollbar-thumb:hover{background:#5a5a5a;border:3px solid transparent;background-clip:content-box}
 @supports not selector(::-webkit-scrollbar){html,.pkl{scrollbar-width:thin;scrollbar-color:#3a3a3a transparent}}
 .sel svg{display:inline-block;margin-left:7px;vertical-align:-1px}
-#l-gif li{position:relative;align-items:center;cursor:grab;user-select:none;-webkit-user-select:none;transition:transform .17s cubic-bezier(.2,.8,.2,1),background .17s,box-shadow .17s}
+#l-gif li{touch-action:none;position:relative;align-items:center;cursor:grab;user-select:none;-webkit-user-select:none;transition:transform .17s cubic-bezier(.2,.8,.2,1),background .17s,box-shadow .17s}
 #l-gif li.drag{transition:none;z-index:2;cursor:grabbing;background:#1b1b1b;box-shadow:0 8px 24px rgba(0,0,0,.55)}
 #l-gif .t{padding:3px;line-height:0;border:0}
 #l-gif .t svg,.grip svg{display:block}
+.lbl.s{width:auto;margin-right:-6px}
+.corner{position:fixed;z-index:5;top:calc(env(safe-area-inset-top,0px) + 20px);right:24px;font-size:13px;color:var(--dim);text-decoration:none;border-bottom:1px solid transparent;padding-bottom:3px;transition:color .18s}
+.corner:hover,.corner:focus-visible{color:#fff;text-decoration:underline;text-underline-offset:4px}
 .grip{display:flex;color:var(--dim);touch-action:none;margin-right:-2px}
 li:hover .grip{color:var(--mid)}
 @media (max-width:480px){.lbl{width:100%}main{padding-top:56px}}
@@ -92,6 +95,8 @@ li:hover .grip{color:var(--mid)}
 <body>
 
 <div class="bg" aria-hidden="true"><canvas id="bg"></canvas></div>
+
+<a class="corner" href="https://critlauncher.xyz/chez">chez</a>
 
 <main>
   <h1>convert</h1>
@@ -106,7 +111,7 @@ li:hover .grip{color:var(--mid)}
 
   <section class="pane" id="p-image">
     <label class="drop" id="d-img"><input type="file" accept="image/*" multiple><span class="dt"><b>choose images</b>&nbsp;or drop them here</span></label>
-    <div class="row"><span class="lbl">to</span><button class="btn sel" id="f-img" type="button" aria-haspopup="dialog"></button></div>
+    <div class="row"><span class="lbl s">to</span><button class="btn sel" id="f-img" type="button" aria-haspopup="dialog"></button></div>
     <p class="note" id="n-ico" hidden>icons include every size from 16 to 256 px, each stored as lossless png, centered on a transparent square.</p>
     <div id="v-img" hidden>
       <div class="row"><span class="lbl">length</span><div class="chips" id="c-len"></div></div>
@@ -136,7 +141,6 @@ li:hover .grip{color:var(--mid)}
     <p class="note">every image is fitted to the size of the first one. gifs are limited to 256 colors per frame, and smaller sizes make smaller files.</p>
   </section>
 
-  <p class="foot">files never leave this tab</p>
 </main>
 
 <div class="pk" id="pk" hidden><div class="pkbox" role="dialog" aria-modal="true" aria-label="choose format"><input id="pk-q" type="text" placeholder="search formats" autocomplete="off" spellcheck="false" aria-label="search formats"><div class="pkl" id="pk-l" role="listbox"></div></div></div>
@@ -623,7 +627,7 @@ function gdraw() {
     const b = $$('button', li);
     b[0].onclick = () => mv(i, -1); b[1].onclick = () => mv(i, 1); b[2].onclick = () => { if (!gmove) { gf.splice(i, 1); gdraw(); } };
     li.onpointerdown = e => {
-      if (e.button || gmove || e.target.closest('button') || (e.pointerType === 'touch' && !e.target.closest('.grip'))) return;
+      if (e.button || gmove || e.target.closest('button')) return;
       e.preventDefault(); gmove = true;
       const items = [...ul.children], n = items.length, h = li.offsetHeight, y0 = e.clientY; let to = i;
       li.setPointerCapture(e.pointerId); li.classList.add('drag');
