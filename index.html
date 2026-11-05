@@ -629,19 +629,23 @@ function gdraw() {
     li.onpointerdown = e => {
       if (e.button || gmove || e.target.closest('button')) return;
       e.preventDefault(); gmove = true;
-      const items = [...ul.children], n = items.length, h = li.offsetHeight, y0 = e.clientY; let to = i;
-      li.setPointerCapture(e.pointerId); li.classList.add('drag');
-      li.onpointermove = ev => {
-        const dy = Math.max(-i * h, Math.min((n - 1 - i) * h, ev.clientY - y0));
+      const items = [...ul.children], n = items.length, tops = items.map(el => el.offsetTop), h = li.offsetHeight, y0 = e.clientY;
+      let to = i;
+      li.classList.add('drag');
+      const noScroll = ev => ev.preventDefault();
+      const move = ev => {
+        const dy = Math.max(tops[0] - tops[i], Math.min(tops[n - 1] - tops[i], ev.clientY - y0));
         li.style.transform = 'translateY(' + dy + 'px)';
-        const t = Math.max(0, Math.min(n - 1, Math.round(i + dy / h)));
+        const mid = tops[i] + dy + h / 2; let t = 0;
+        while (t < n - 1 && mid > tops[t + 1]) t++;
         if (t !== to) { to = t; gshift(items, i, to, h); }
       };
-      li.onpointerup = li.onpointercancel = () => {
-        li.onpointermove = li.onpointerup = li.onpointercancel = null;
-        li.classList.remove('drag'); li.style.transition = EASE; li.style.transform = 'translateY(' + (to - i) * h + 'px)';
+      const end = () => {
+        removeEventListener('pointermove', move); removeEventListener('pointerup', end); removeEventListener('pointercancel', end); removeEventListener('touchmove', noScroll);
+        li.classList.remove('drag'); li.style.transition = EASE; li.style.transform = 'translateY(' + (tops[to] - tops[i]) + 'px)';
         setTimeout(() => gcommit(i, to), 180);
       };
+      addEventListener('pointermove', move); addEventListener('pointerup', end); addEventListener('pointercancel', end); addEventListener('touchmove', noScroll, { passive: false });
     };
     ul.append(li);
   });
