@@ -87,6 +87,7 @@ audio.out{width:100%;height:44px;background:none}
 .lbl.s{width:auto;margin-right:-6px}
 .corner{position:fixed;z-index:5;top:calc(env(safe-area-inset-top,0px) + 20px);right:24px;font-size:13px;color:var(--dim);text-decoration:none;border-bottom:1px solid transparent;padding-bottom:3px;transition:color .18s}
 .corner:hover,.corner:focus-visible{color:#fff;text-decoration:underline;text-underline-offset:4px}
+.th{width:34px;height:34px;object-fit:cover;background:#000;flex:none;pointer-events:none;-webkit-user-drag:none;user-select:none}
 .grip{display:flex;color:var(--dim);touch-action:none;margin-right:-2px}
 li:hover .grip{color:var(--mid)}
 @media (max-width:480px){.lbl{width:100%}main{padding-top:56px}}
@@ -619,7 +620,7 @@ const gul = () => $('#l-gif');
 function gsync() {
   const its = [...gul().children];
   gf.splice(0, gf.length, ...its.map(e => e._f));
-  its.forEach((e, i) => { e.children[1].textContent = (i + 1) + '. ' + e._f.name; });
+  its.forEach((e, i) => { $('.n', e).textContent = (i + 1) + '. ' + e._f.name; });
   $('#b-gif').disabled = busy || !gf.length; $('#z-gif').hidden = !gf.length;
 }
 /* move a row to index `to` right away, then slide the rows from where they were (looks only) */
@@ -662,12 +663,13 @@ function gdrag(li, y0, touch) {
   if (touch) { li.addEventListener('touchmove', ont, { passive: false }); li.addEventListener('touchend', end); li.addEventListener('touchcancel', end); }
   else { addEventListener('mousemove', onm); addEventListener('mouseup', end); addEventListener('blur', end); }
 }
+const GU = new WeakMap(), gurl = f => GU.get(f) || (GU.set(f, URL.createObjectURL(f)), GU.get(f));
 function gdraw() {
   const ul = gul(); ul.innerHTML = '';
   gf.forEach(f => {
     const li = document.createElement('li'); li._f = f;
-    li.innerHTML = '<span class="grip" aria-hidden="true">' + IC.grip + '</span><span class="n"></span><span class="m"></span><button class="t" type="button" aria-label="move up">' + IC.up + '</button><button class="t" type="button" aria-label="move down">' + IC.down + '</button><button class="t" type="button" aria-label="remove">' + IC.x + '</button>';
-    li.children[2].textContent = fmtSize(f.size);
+    li.innerHTML = '<span class="grip" aria-hidden="true">' + IC.grip + '</span><img class="th" alt="" draggable="false" decoding="async"><span class="n"></span><span class="m"></span><button class="t" type="button" aria-label="move up">' + IC.up + '</button><button class="t" type="button" aria-label="move down">' + IC.down + '</button><button class="t" type="button" aria-label="remove">' + IC.x + '</button>';
+    $('.m', li).textContent = fmtSize(f.size); $('.th', li).src = gurl(f);
     const b = $$('button', li), at = () => [...ul.children].indexOf(li);
     b[0].onclick = () => gplace(li, at() - 1, true);
     b[1].onclick = () => gplace(li, at() + 1, true);
