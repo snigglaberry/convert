@@ -73,6 +73,18 @@ video.out{width:100%}
 .pko.act{color:#fff;text-decoration:underline;text-underline-offset:4px}
 .pko[aria-selected=true]::after{content:' ·'}
 .pke{font-size:13px;color:var(--dim);padding:16px 0 6px}
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-track,::-webkit-scrollbar-corner{background:transparent}
+::-webkit-scrollbar-thumb{background:#303030;border:3px solid transparent;background-clip:content-box;transition:background .18s}
+::-webkit-scrollbar-thumb:hover{background:#5a5a5a;border:3px solid transparent;background-clip:content-box}
+@supports not selector(::-webkit-scrollbar){html,.pkl{scrollbar-width:thin;scrollbar-color:#3a3a3a transparent}}
+.sel svg{display:inline-block;margin-left:7px;vertical-align:-1px}
+#l-gif li{position:relative;align-items:center;cursor:grab;user-select:none;-webkit-user-select:none;transition:transform .17s cubic-bezier(.2,.8,.2,1),background .17s,box-shadow .17s}
+#l-gif li.drag{transition:none;z-index:2;cursor:grabbing;background:#1b1b1b;box-shadow:0 8px 24px rgba(0,0,0,.55)}
+#l-gif .t{padding:3px;line-height:0;border:0}
+#l-gif .t svg,.grip svg{display:block}
+.grip{display:flex;color:var(--dim);touch-action:none;margin-right:-2px}
+li:hover .grip{color:var(--mid)}
 @media (max-width:480px){.lbl{width:100%}main{padding-top:56px}}
 @media (prefers-reduced-motion:reduce){.pane.on{animation:none}.bar i{transition:none}.bar.ind i{animation:none;width:100%;opacity:.4}}
 </style>
@@ -228,10 +240,13 @@ pq.addEventListener('keydown', e => {
   else if (e.key === 'Enter') { e.preventDefault(); pv[pa] && ppick(pv[pa].i); }
 });
 pk.addEventListener('mousedown', e => { if (e.target === pk) pclose(); });
+const svg = (d, s = 14) => '<svg width="' + s + '" height="' + s + '" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="square" aria-hidden="true">' + d + '</svg>';
+const IC = { caret: svg('<path d="M3 5.5l4 4 4-4"/>', 10), up: svg('<path d="M7 12V2M3 6l4-4 4 4"/>'), down: svg('<path d="M7 2v10M3 8l4 4 4-4"/>'), x: svg('<path d="M3 3l8 8M11 3l-8 8"/>'), grip: svg('<path d="M5 3h.01M9 3h.01M5 7h.01M9 7h.01M5 11h.01M9 11h.01" stroke-width="2" stroke-linecap="round"/>') };
 function dropdown(btn, groups, def, cb) {
   let v = def;
-  const set = x => { v = x; btn.textContent = x + ' ▾'; cb && cb(x); };
-  btn.textContent = v + ' ▾';
+  const lbl = x => { btn.textContent = x; btn.insertAdjacentHTML('beforeend', IC.caret); };
+  const set = x => { v = x; lbl(x); cb && cb(x); };
+  lbl(v);
   btn.onclick = () => { pc = { btn, groups, get: () => v, set }; pq.value = ''; pk.hidden = false; pdraw(); pq.focus(); };
   return { get: () => v };
 }
@@ -583,15 +598,47 @@ const gdc = chips($('#c-gd'), [.25, .5, 1, 2, 3, 5], 1, v => { gd.value = v; }, 
 gd.addEventListener('input', () => gdc.set(+gd.value));
 const gsz = chips($('#c-gs'), ['original', 1080, 720, 480, 320], 480, null, v => v === 'original' ? v : v + 'px');
 const glp = chips($('#c-gl'), ['forever', 'once'], 'forever');
+const EASE = 'transform .17s cubic-bezier(.2,.8,.2,1)';
+let gmove = false;
+function gshift(items, from, to, h) {
+  items.forEach((e, j) => {
+    if (j === from) return;
+    e.style.transition = EASE;
+    e.style.transform = from < to && j > from && j <= to ? 'translateY(' + -h + 'px)' : from > to && j >= to && j < from ? 'translateY(' + h + 'px)' : '';
+  });
+}
+function gcommit(from, to) { if (from !== to) gf.splice(to, 0, gf.splice(from, 1)[0]); gmove = false; gdraw(); }
 function gdraw() {
   const ul = $('#l-gif'); ul.innerHTML = '';
-  const mv = (i, d) => { const j = i + d; if (j < 0 || j >= gf.length) return; [gf[i], gf[j]] = [gf[j], gf[i]]; gdraw(); };
+  const mv = (i, d) => {
+    const j = i + d; if (j < 0 || j >= gf.length || gmove) return; gmove = true;
+    const items = [...ul.children], h = items[i].offsetHeight;
+    items[i].style.zIndex = 2; items[i].style.transition = EASE; items[i].style.transform = 'translateY(' + d * h + 'px)';
+    gshift(items, i, j, h); setTimeout(() => gcommit(i, j), 180);
+  };
   gf.forEach((f, i) => {
     const li = document.createElement('li');
-    li.innerHTML = '<span class="n"></span><span class="m"></span><button class="t" type="button" aria-label="move up">↑</button><button class="t" type="button" aria-label="move down">↓</button><button class="t" type="button" aria-label="remove">×</button>';
-    li.children[0].textContent = (i + 1) + '. ' + f.name; li.children[1].textContent = fmtSize(f.size);
+    li.innerHTML = '<span class="grip" aria-hidden="true">' + IC.grip + '</span><span class="n"></span><span class="m"></span><button class="t" type="button" aria-label="move up">' + IC.up + '</button><button class="t" type="button" aria-label="move down">' + IC.down + '</button><button class="t" type="button" aria-label="remove">' + IC.x + '</button>';
+    li.children[1].textContent = (i + 1) + '. ' + f.name; li.children[2].textContent = fmtSize(f.size);
     const b = $$('button', li);
-    b[0].onclick = () => mv(i, -1); b[1].onclick = () => mv(i, 1); b[2].onclick = () => { gf.splice(i, 1); gdraw(); };
+    b[0].onclick = () => mv(i, -1); b[1].onclick = () => mv(i, 1); b[2].onclick = () => { if (!gmove) { gf.splice(i, 1); gdraw(); } };
+    li.onpointerdown = e => {
+      if (e.button || gmove || e.target.closest('button') || (e.pointerType === 'touch' && !e.target.closest('.grip'))) return;
+      e.preventDefault(); gmove = true;
+      const items = [...ul.children], n = items.length, h = li.offsetHeight, y0 = e.clientY; let to = i;
+      li.setPointerCapture(e.pointerId); li.classList.add('drag');
+      li.onpointermove = ev => {
+        const dy = Math.max(-i * h, Math.min((n - 1 - i) * h, ev.clientY - y0));
+        li.style.transform = 'translateY(' + dy + 'px)';
+        const t = Math.max(0, Math.min(n - 1, Math.round(i + dy / h)));
+        if (t !== to) { to = t; gshift(items, i, to, h); }
+      };
+      li.onpointerup = li.onpointercancel = () => {
+        li.onpointermove = li.onpointerup = li.onpointercancel = null;
+        li.classList.remove('drag'); li.style.transition = EASE; li.style.transform = 'translateY(' + (to - i) * h + 'px)';
+        setTimeout(() => gcommit(i, to), 180);
+      };
+    };
     ul.append(li);
   });
   $('#b-gif').disabled = busy || !gf.length; $('#z-gif').hidden = !gf.length;
