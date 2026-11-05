@@ -613,68 +613,70 @@ gd.addEventListener('input', () => gdc.set(+gd.value));
 const gsz = chips($('#c-gs'), ['original', 1080, 720, 480, 320], 480, null, v => v === 'original' ? v : v + 'px');
 const glp = chips($('#c-gl'), ['forever', 'once'], 'forever');
 const EASE = 'transform .17s cubic-bezier(.2,.8,.2,1)';
-let gmove = false, gend = null, gAt = 0;
-const glock = () => { if (gend) { gend(); return true; } return gmove && Date.now() - gAt < 1000; };
-function gshift(items, from, to, h) {
-  items.forEach((e, j) => {
-    if (j === from) return;
-    e.style.transition = EASE;
-    e.style.transform = from < to && j > from && j <= to ? 'translateY(' + -h + 'px)' : from > to && j >= to && j < from ? 'translateY(' + h + 'px)' : '';
-  });
+let lastTouch = 0, gcur = null;
+const gul = () => $('#l-gif');
+/* the rows in the page are the truth: gf is rebuilt from them after every change */
+function gsync() {
+  const its = [...gul().children];
+  gf.splice(0, gf.length, ...its.map(e => e._f));
+  its.forEach((e, i) => { e.children[1].textContent = (i + 1) + '. ' + e._f.name; });
+  $('#b-gif').disabled = busy || !gf.length; $('#z-gif').hidden = !gf.length;
 }
-function gcommit(f, to) { const k = gf.indexOf(f); if (k > -1 && k !== to) { gf.splice(k, 1); gf.splice(to, 0, f); } gmove = false; gend = null; gdraw(); }
-let lastTouch = 0;
-function gdrag(li, i, ul, y0, touch) {
-  gmove = true; gAt = Date.now();
-  const items = [...ul.children], n = items.length, tops = items.map(el => el.offsetTop), h = li.offsetHeight;
-  let to = i, done = false; const f = gf[i];
-  li.classList.add('drag');
+/* move a row to index `to` right away, then slide the rows from where they were (looks only) */
+function gplace(li, to, self) {
+  const ul = gul(), its = [...ul.children], from = its.indexOf(li);
+  if (to < 0 || to >= its.length || to === from) return false;
+  const tops = new Map(its.map(e => [e, e.getBoundingClientRect().top]));
+  ul.insertBefore(li, to > from ? its[to].nextSibling : its[to]);
+  gsync();
+  [...ul.children].forEach(e => {
+    if (e === li && !self) return;
+    const d = tops.get(e) - e.getBoundingClientRect().top;
+    if (!d) return;
+    e.style.transition = 'none'; e.style.transform = 'translateY(' + d + 'px)';
+    e.offsetWidth; e.style.transition = EASE; e.style.transform = '';
+  });
+  return true;
+}
+function gdrag(li, y0, touch) {
+  gcur && gcur();
+  const ul = gul(), h = li.offsetHeight, top0 = li.offsetTop; let done = false;
+  li.style.transition = 'none'; li.style.transform = ''; li.classList.add('drag');
   const move = y => {
-    const dy = Math.max(tops[0] - tops[i], Math.min(tops[n - 1] - tops[i], y - y0));
-    li.style.transform = 'translateY(' + dy + 'px)';
-    const mid = tops[i] + dy + h / 2; let t = 0;
-    while (t < n - 1 && mid > tops[t + 1]) t++;
-    if (t !== to) { to = t; gshift(items, i, to, h); }
+    const lo = ul.firstElementChild.offsetTop, hi = ul.lastElementChild.offsetTop;
+    const top = Math.max(lo, Math.min(hi, top0 + y - y0)), c = top + h / 2; let n, p;
+    while ((n = li.nextElementSibling) && c > n.offsetTop + n.offsetHeight / 2) gplace(li, [...ul.children].indexOf(li) + 1, false);
+    while ((p = li.previousElementSibling) && c < p.offsetTop + p.offsetHeight / 2) gplace(li, [...ul.children].indexOf(li) - 1, false);
+    li.style.transform = 'translateY(' + (top - li.offsetTop) + 'px)';
   };
-  const onm = ev => { if (!ev.buttons) { end(); return; } move(ev.clientY); };
+  const onm = ev => { if (!ev.buttons) end(); else move(ev.clientY); };
   const ont = ev => { ev.preventDefault(); if (ev.touches[0]) move(ev.touches[0].clientY); };
-  const end = () => {
-    if (done) return; done = true; gend = null; gAt = Date.now();
-    removeEventListener('blur', end); removeEventListener('mousemove', onm); removeEventListener('mouseup', end);
+  function end() {
+    if (done) return; done = true; gcur = null;
+    removeEventListener('mousemove', onm); removeEventListener('mouseup', end); removeEventListener('blur', end);
     li.removeEventListener('touchmove', ont); li.removeEventListener('touchend', end); li.removeEventListener('touchcancel', end);
-    li.classList.remove('drag'); li.style.transition = EASE; li.style.transform = 'translateY(' + (tops[to] - tops[i]) + 'px)';
-    setTimeout(() => gcommit(f, to), 180);
-  };
+    li.style.transition = EASE; li.style.transform = ''; li.style.zIndex = 2; li.classList.remove('drag');
+    setTimeout(() => { li.style.zIndex = ''; }, 230);
+  }
+  gcur = end;
   if (touch) { li.addEventListener('touchmove', ont, { passive: false }); li.addEventListener('touchend', end); li.addEventListener('touchcancel', end); }
   else { addEventListener('mousemove', onm); addEventListener('mouseup', end); addEventListener('blur', end); }
-  gend = end;
 }
 function gdraw() {
-  const ul = $('#l-gif'); ul.innerHTML = '';
-  const mv = (i, d) => {
-    const j = i + d; if (j < 0 || j >= gf.length || glock()) return; gmove = true; gAt = Date.now();
-    const items = [...ul.children], h = items[i].offsetHeight;
-    items[i].style.zIndex = 2; items[i].style.transition = EASE; items[i].style.transform = 'translateY(' + d * h + 'px)';
-    gshift(items, i, j, h); const f = gf[i]; setTimeout(() => gcommit(f, j), 180);
-  };
-  gf.forEach((f, i) => {
-    const li = document.createElement('li');
+  const ul = gul(); ul.innerHTML = '';
+  gf.forEach(f => {
+    const li = document.createElement('li'); li._f = f;
     li.innerHTML = '<span class="grip" aria-hidden="true">' + IC.grip + '</span><span class="n"></span><span class="m"></span><button class="t" type="button" aria-label="move up">' + IC.up + '</button><button class="t" type="button" aria-label="move down">' + IC.down + '</button><button class="t" type="button" aria-label="remove">' + IC.x + '</button>';
-    li.children[1].textContent = (i + 1) + '. ' + f.name; li.children[2].textContent = fmtSize(f.size);
-    const b = $$('button', li);
-    b[0].onclick = () => mv(i, -1); b[1].onclick = () => mv(i, 1); b[2].onclick = () => { if (!glock()) { gf.splice(i, 1); gdraw(); } };
-    li.onmousedown = e => {
-      if (e.button || Date.now() - lastTouch < 700 || e.target.closest('button') || glock()) return;
-      e.preventDefault(); gdrag(li, i, ul, e.clientY, false);
-    };
-    li.addEventListener('touchstart', e => {
-      lastTouch = Date.now();
-      if (e.touches.length !== 1 || e.target.closest('button') || glock()) return;
-      gdrag(li, i, ul, e.touches[0].clientY, true);
-    }, { passive: true });
+    li.children[2].textContent = fmtSize(f.size);
+    const b = $$('button', li), at = () => [...ul.children].indexOf(li);
+    b[0].onclick = () => gplace(li, at() - 1, true);
+    b[1].onclick = () => gplace(li, at() + 1, true);
+    b[2].onclick = () => { li.remove(); gsync(); };
+    li.onmousedown = e => { if (e.button || Date.now() - lastTouch < 700 || e.target.closest('button')) return; e.preventDefault(); gdrag(li, e.clientY, false); };
+    li.addEventListener('touchstart', e => { lastTouch = Date.now(); if (e.touches.length !== 1 || e.target.closest('button')) return; gdrag(li, e.touches[0].clientY, true); }, { passive: true });
     ul.append(li);
   });
-  $('#b-gif').disabled = busy || !gf.length; $('#z-gif').hidden = !gf.length;
+  gsync();
 }
 wire($('#d-gif'), true, f => f.type.startsWith('image/'), fs => { gf.push(...fs); gdraw(); });
 $('#z-gif').onclick = () => { gf.length = 0; gdraw(); };
